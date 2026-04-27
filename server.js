@@ -2,6 +2,10 @@ const fs = require("node:fs/promises");
 const path = require("node:path");
 const http = require("node:http");
 const { execFile } = require("node:child_process");
+const {
+  buildChecks: buildCommercialChecks,
+  summarize: summarizeCommercialChecks,
+} = require("./scripts/check-commercial-boundary");
 
 const root = process.cwd();
 const workspaceRoot = path.join(root, ".dance-of-tal");
@@ -896,74 +900,47 @@ function manualCommands() {
     studio:
       'PATH="$PWD/.tools/bin:/tmp/node-v22.11.0-darwin-arm64/bin:$PATH" npm run studio',
     commercialStudio:
-      "DOT_SUPABASE_URL=https://auth.your-domain.example DOT_SUPABASE_ANON_KEY=<your-public-anon-key> npm run studio:commercial",
+      "DANCEOFTAL_MODE=commercial DOT_SUPABASE_URL=https://auth.your-domain.example DOT_SUPABASE_ANON_KEY=<your-public-anon-key> npm run studio:commercial",
+    modeCheck: "npm run mode:check",
     commercialCheck: "npm run commercial:check",
+    productionCheck: "npm run production:check",
     githubStatus: "git status --short --branch",
     githubPush: "git push origin main",
   };
 }
 
 function commercialBoundary() {
-  const upstreamAuthUrl = "https://qbildcrfjencoqkngyfw.supabase.co";
-  const authUrl = process.env.DOT_SUPABASE_URL || "";
-  const anonKey = process.env.DOT_SUPABASE_ANON_KEY || "";
-  const studioDir = process.env.STUDIO_DIR || "";
-  const opencodeConfigDir = process.env.OPENCODE_CONFIG_DIR || "";
-  const dataApiUrl = process.env.DANCEOFTAL_DATA_API_URL || "";
-  const checks = [
-    {
-      key: "dot-auth-backend",
-      ok: Boolean(authUrl && authUrl !== upstreamAuthUrl),
-      warningOnly: false,
-      label: "DOT auth backend",
-      detail: authUrl
-        ? authUrl === upstreamAuthUrl
-          ? "업스트림 DOT Supabase를 사용 중입니다."
-          : `자체 auth backend 사용 중: ${authUrl}`
-        : "DOT_SUPABASE_URL이 없어 DOT 기본 Supabase로 로그인될 수 있습니다.",
-    },
-    {
-      key: "dot-auth-key",
-      ok: Boolean(anonKey),
-      warningOnly: false,
-      label: "DOT auth key",
-      detail: anonKey ? "DOT_SUPABASE_ANON_KEY 설정됨" : "자체 auth backend용 DOT_SUPABASE_ANON_KEY가 필요합니다.",
-    },
-    {
-      key: "studio-data-root",
-      ok: Boolean(studioDir),
-      warningOnly: true,
-      label: "Studio data root",
-      detail: studioDir || "STUDIO_DIR 미설정. 기본 ~/.dot-studio 로컬 저장소를 사용합니다.",
-    },
-    {
-      key: "opencode-data-root",
-      ok: Boolean(opencodeConfigDir),
-      warningOnly: true,
-      label: "OpenCode data root",
-      detail: opencodeConfigDir || "OPENCODE_CONFIG_DIR 미설정. 상업 운영에서는 제품 소유 경로로 고정하세요.",
-    },
-    {
-      key: "product-data-api",
-      ok: Boolean(dataApiUrl),
-      warningOnly: true,
-      label: "Product data API",
-      detail: dataApiUrl || "DANCEOFTAL_DATA_API_URL 미설정. 서버 저장소 전환 전 준비가 필요합니다.",
-    },
-  ];
-  const blockers = checks.filter((check) => !check.ok && !check.warningOnly);
-  const warnings = checks.filter((check) => !check.ok && check.warningOnly);
+  const checks = buildCommercialChecks();
+  const summary = summarizeCommercialChecks(checks);
+  const mode = summary.mode;
+  const productMode = mode === "commercial" || mode === "production";
+  const gateReady = summary.blockers.length === 0;
+  const productReady = productMode && gateReady;
   return {
-    ok: blockers.length === 0,
-    state: blockers.length === 0 ? (warnings.length ? "warning" : "ok") : "error",
-    status: blockers.length === 0 ? "상업 데이터 경계 준비 중" : "상업 데이터 경계 미준비",
+    ok: productMode ? gateReady : true,
+    productReady,
+    mode,
+    modeLabel:
+      mode === "production"
+        ? "프로덕션 모드"
+        : mode === "commercial"
+          ? "상업화 리허설 모드"
+          : "개발 모드",
+    state: gateReady ? (summary.warnings.length ? "warning" : "ok") : productMode ? "error" : "warning",
+    status: productMode
+      ? gateReady
+        ? "제품 데이터 경계 준비 중"
+        : "제품 데이터 경계 미준비"
+      : "개발 모드: 기존 로컬 기능 유지",
     detail:
-      blockers.length === 0
-        ? "로그인 backend는 자체 인프라로 설정됐습니다. workspace 서버 저장소 전환을 이어가면 됩니다."
-        : "업스트림 DOT auth로 로그인될 수 있습니다. 자체 auth backend 설정 후 commercial 실행 스크립트를 사용하세요.",
+      productMode
+        ? gateReady
+          ? "로그인 backend는 자체 인프라로 설정됐습니다. 프로덕션 전 workspace 저장 API 전환을 완료하세요."
+          : "업스트림 DOT auth로 로그인될 수 있습니다. 자체 auth/data backend 설정 후 product 모드로 전환하세요."
+        : "현재는 개발 모드라 DOT Studio/OpenCode/Registry 기존 기능을 그대로 사용할 수 있습니다. 상업화 전환 시 commercial/production 체크를 통과해야 합니다.",
     checks,
-    blockers,
-    warnings,
+    blockers: summary.blockers,
+    warnings: summary.warnings,
   };
 }
 
@@ -1038,9 +1015,11 @@ function buildRecoveryFlows(data) {
       key: "commercial-data-boundary",
       title: "상업 데이터 경계",
       state: data.commercialBoundary?.state || "warning",
-      detail: data.commercialBoundary?.ok
+      detail: data.commercialBoundary?.productReady
         ? "DOT auth가 자체 backend로 향합니다. 다음 단계는 workspace 저장 API 전환입니다."
-        : "상업 제품에서는 업스트림 DOT auth 대신 내 auth/data backend로 실행해야 합니다.",
+        : data.commercialBoundary?.mode === "development"
+          ? "개발 중에는 기존 기능을 유지하고, 상업화 전환 시 product 체크를 통과하세요."
+          : "상업 제품에서는 업스트림 DOT auth 대신 내 auth/data backend로 실행해야 합니다.",
       action: "상업 실행 명령 보기",
       url: "#launcher-tools",
     },
@@ -1154,12 +1133,14 @@ async function launcher() {
         url: "#launcher-tools",
         port: null,
         status: boundary.status,
-        detail: boundary.detail,
+        detail: `${boundary.modeLabel}: ${boundary.detail}`,
         portDetail: null,
-        command: `${commands.commercialCheck} && ${commands.commercialStudio}`,
-        logCommand: "printenv DOT_SUPABASE_URL DOT_SUPABASE_ANON_KEY STUDIO_DIR OPENCODE_CONFIG_DIR DANCEOFTAL_DATA_API_URL",
+        command: `${commands.modeCheck} && ${commands.commercialCheck} && ${commands.commercialStudio}`,
+        logCommand:
+          "printenv DANCEOFTAL_MODE DANCEOFTAL_STORAGE_MODE DANCEOFTAL_DATA_OWNER DOT_SUPABASE_URL DOT_SUPABASE_ANON_KEY STUDIO_DIR OPENCODE_CONFIG_DIR DANCEOFTAL_DATA_API_URL",
         canRestart: false,
-        restartReason: "상업 실행은 upstream auth 차단을 위해 npm run studio:commercial로 별도 시작합니다.",
+        restartReason:
+          "개발 모드는 기존 실행을 유지하고, 상업 실행은 upstream auth 차단을 위해 npm run studio:commercial로 별도 시작합니다.",
       },
       {
         key: "github",

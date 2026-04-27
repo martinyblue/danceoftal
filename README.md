@@ -1,6 +1,6 @@
 # dance-of-tal Local Manager
 
-Version: `0.2.3`
+Version: `0.2.4`
 
 This repository contains a local-first manager for `dance-of-tal` style assets.
 It is built for the project owner, not first-time visitors. The local UI creates
@@ -64,7 +64,9 @@ npm run studio:commercial
 Check the boundary before running a commercial session:
 
 ```bash
+npm run mode:check
 npm run commercial:check
+npm run production:check
 ```
 
 Start OpenCode and DOT Studio in separate terminals when restarting manually:
@@ -143,7 +145,10 @@ dot-studio doctor . --verbose
   handles immediately, expose a larger corner grip, and allow wider zoom-out
 - block commercial Studio startup when DOT auth would fall back to the upstream
   open-source backend instead of a product-owned auth server
-- show commercial data-boundary status in the Manager launcher
+- keep development mode local-first so existing Manager, DOT Studio, OpenCode,
+  Registry, and GitHub flows continue to work during feature development
+- show the current development/commercial/production data-boundary mode in the
+  Manager launcher
 - provide OpenCode recovery actions for opening the base URL, rechecking status,
   and understanding stale `/session` URLs
 - translate common registry and GitHub install failures into non-technical Korean
@@ -180,13 +185,20 @@ make local verification and repeated setup easier.
 Commercial development should move every user/customer data path under
 product-owned infrastructure:
 
+- Mode: default development mode preserves all current local functionality.
+  `DANCEOFTAL_MODE=commercial` is a guarded local rehearsal, and
+  `DANCEOFTAL_MODE=production` is the strict deployment readiness check.
 - Auth: set `DOT_SUPABASE_URL` and `DOT_SUPABASE_ANON_KEY` to a backend you own.
   The guarded `npm run studio:commercial` command refuses to start if those are
   missing, because DOT would otherwise fall back to the upstream Supabase
   project.
-- Studio workspace data: development still stores snapshots locally under
-  `STUDIO_DIR` or `~/.dot-studio/workspaces`. The next product step is replacing
-  that local workspace persistence with a server API owned by this product.
+- Data owner: set `DANCEOFTAL_DATA_OWNER` to the owning account/product and keep
+  production credentials in a secret manager, not in Git.
+- Storage: development still stores snapshots locally under `STUDIO_DIR` or
+  `~/.dot-studio/workspaces`. Production mode expects
+  `DANCEOFTAL_STORAGE_MODE=server` plus a product-owned
+  `DANCEOFTAL_DATA_API_URL`; the next implementation step is replacing local
+  workspace persistence with that server API.
 - OpenCode/session data: set `OPENCODE_CONFIG_DIR` to a product-owned path for
   development, then move production execution logs/session state to the product
   backend.
@@ -195,7 +207,20 @@ product-owned infrastructure:
   will go.
 
 The Manager launcher includes a `Commercial data boundary` card so a developer
-can see whether the current run is still using unsafe defaults.
+can see whether the current run is still using unsafe defaults. In development
+mode that card is advisory only and does not block the local launcher; in
+commercial/production modes it becomes the gate before product use.
+
+Recommended switch-over sequence:
+
+1. Keep building in default development mode and verify every existing local
+   feature still works.
+2. Add a product-owned auth backend and run `npm run commercial:check`.
+3. Add the product data API contract and set `DANCEOFTAL_STORAGE_MODE=server`.
+4. Run `npm run production:check` before any real web deployment or customer
+   workspace use.
+5. Only then route customer login, workspace data, execution logs, and publish
+   flows to the product-owned backend.
 
 ## Troubleshooting
 
@@ -224,6 +249,9 @@ a package version bump plus a Git commit pushed to `martinyblue/danceoftal`.
 
 ## Version Notes
 
+- `0.2.4`: added explicit development/commercial/production mode checks so local
+  development keeps all current features working while product mode can require
+  owner-controlled auth and server storage.
 - `0.2.3`: added commercial data-boundary checks and a guarded Studio launcher
   that requires product-owned DOT auth configuration.
 - `0.2.2`: widened the local DOT Studio canvas zoom-out range so larger

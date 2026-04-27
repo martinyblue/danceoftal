@@ -320,6 +320,10 @@ function renderLauncherHandoff(handoff) {
     lifecycle.mode === "automatic-shutdown"
       ? `${lifecycle.label} / 약 ${formatDuration(lifecycle.remainingMs)} 남음`
       : lifecycle.label || "수동 실행 중";
+  const boundary = handoff.commercialBoundary || {};
+  const boundaryDetail = boundary.modeLabel
+    ? `${boundary.modeLabel} / ${boundary.status}`
+    : "";
   const serviceCards = (handoff.services || [])
     .map(
       (service) => {
@@ -404,6 +408,7 @@ function renderLauncherHandoff(handoff) {
       <strong>${escapeHtml(handoff.title)}</strong>
       <p>${escapeHtml(handoff.objective)}</p>
       <span>${escapeHtml(lifecycleDetail)}</span>
+      ${boundaryDetail ? `<span>${escapeHtml(boundaryDetail)}</span>` : ""}
     </div>
     <div class="launcher-services">${serviceCards}</div>
     <div class="launcher-grid launcher-grid--ops">

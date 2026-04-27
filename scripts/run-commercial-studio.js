@@ -7,16 +7,21 @@ const {
 } = require("./check-commercial-boundary");
 
 const root = process.cwd();
-const checks = buildChecks();
+const commercialEnv = {
+  ...process.env,
+  DANCEOFTAL_MODE: process.env.DANCEOFTAL_MODE || "commercial",
+};
+const checks = buildChecks(commercialEnv);
 const summary = summarize(checks);
 
 if (!summary.ok) {
   console.error("Commercial Studio run blocked. Configure your own auth backend first:");
   for (const blocker of summary.blockers) {
-    console.error(`- ${blocker}`);
+    console.error(`- ${blocker.detail}`);
   }
   console.error("");
   console.error("Minimum required environment:");
+  console.error("DANCEOFTAL_MODE=commercial");
   console.error("DOT_SUPABASE_URL=https://auth.your-domain.example");
   console.error("DOT_SUPABASE_ANON_KEY=<your-public-anon-key>");
   console.error("");
@@ -25,7 +30,7 @@ if (!summary.ok) {
 }
 
 const env = {
-  ...process.env,
+  ...commercialEnv,
   PATH: `${path.join(root, ".tools", "bin")}:/tmp/node-v22.11.0-darwin-arm64/bin:${process.env.PATH || ""}`,
   STUDIO_DIR:
     process.env.STUDIO_DIR ||
