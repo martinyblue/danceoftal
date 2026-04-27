@@ -2,11 +2,11 @@
   "kind": "tal",
   "urn": "tal/@martinyblue/local/knolet-architect",
   "name": "Knolet Architect",
-  "summary": "Turns domain knowledge into executable workflow app structure.",
+  "summary": "Domain knowledge to executable workflow app designer.",
   "instructions": [
-    "Separate persona, knowledge, skills, UI, runtime, and versioning.",
-    "Prefer reusable workflow blocks over a single master prompt.",
-    "Keep generated specs explicit and reviewable."
+    "Separate identity, knowledge, skills, UI, runtime, and versions.",
+    "Convert source documents into explicit KnoletSpec candidates.",
+    "Preserve fork/share/version boundaries in every workflow."
   ],
-  "updatedAt": "2026-04-27T07:16:15.223Z"
+  "updatedAt": "2026-04-27T07:59:48.809Z"
 }

@@ -28,13 +28,32 @@
           <h2>Workspace</h2>
           <p class="note">
             이 화면은 방문자용 홈페이지가 아니라 관리자가 로컬에서 DOT 구조를
-            만들고 확인하기 위한 콘솔입니다.
+            만들고 확인하기 위한 콘솔입니다. 공식 dance-of-tal의 화면이 아니라
+            이 repo에 맞춰 만든 보조 관리자 UI입니다.
           </p>
           <div class="button-stack">
             <button id="initWorkspace" type="button">Initialize .dance-of-tal</button>
             <button id="seedWorkspace" type="button">Create Knolet sample flow</button>
             <button id="refreshWorkspace" type="button">Refresh</button>
           </div>
+        </section>
+
+        <section class="panel">
+          <h2>Button Results</h2>
+          <dl class="model-list">
+            <div>
+              <dt>Initialize</dt>
+              <dd>workspace 폴더와 기본 metadata를 만들고 상태 pill이 ready로 바뀝니다.</dd>
+            </div>
+            <div>
+              <dt>Sample</dt>
+              <dd>Knolet용 Tal, Dance, Performer, Act를 실제 파일로 씁니다.</dd>
+            </div>
+            <div>
+              <dt>Refresh</dt>
+              <dd>디스크의 `.dance-of-tal/` 파일을 다시 읽어 목록과 canvas를 갱신합니다.</dd>
+            </div>
+          </dl>
         </section>
 
         <section class="panel">
@@ -69,6 +88,11 @@
             </div>
             <span class="urn-preview" id="urnPreview">kind/@owner/stage/name</span>
           </div>
+          <p class="note note--compact">
+            Create Asset은 공식 registry publish가 아니라 로컬 `.dance-of-tal/` 파일을
+            작성하는 도구입니다. Tal은 지시문, Dance는 SKILL.md, Performer는 실행
+            agent 구성, Act는 여러 Performer의 workflow 정의를 만듭니다.
+          </p>
 
           <form id="assetForm" class="asset-form">
             <label>
@@ -103,6 +127,57 @@
           </form>
         </section>
 
+        <section class="panel">
+          <div class="panel-heading">
+            <div>
+              <p class="label">Import</p>
+              <h2>Local file to .dance-of-tal</h2>
+            </div>
+          </div>
+          <div class="import-box">
+            <p>
+              공식 DOT Studio의 sidebar `Open`은 보통 workspace 폴더를 여는 동작입니다.
+              파일 업로드를 기대했다면 이 Manager의 import를 사용하세요.
+            </p>
+            <input id="assetImport" type="file" accept=".json,.md" />
+            <button id="importAsset" class="secondary" type="button">Import selected file</button>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-heading">
+            <div>
+              <p class="label">Canvas</p>
+              <h2>Document to Knolet App</h2>
+            </div>
+            <a class="link-button" href="http://127.0.0.1:43110" target="_blank" rel="noreferrer">
+              Open DOT Studio
+            </a>
+          </div>
+          <div class="workflow-canvas" id="workflowCanvas">
+            <article class="canvas-node canvas-node--tal">
+              <span>Tal</span>
+              <strong>knolet-architect</strong>
+              <small>identity / instructions</small>
+            </article>
+            <article class="canvas-node canvas-node--dance">
+              <span>Dance</span>
+              <strong>source-document-parser</strong>
+              <small>skill package</small>
+            </article>
+            <article class="canvas-node canvas-node--performer">
+              <span>Performer</span>
+              <strong>knolet-builder</strong>
+              <small>Tal + Dance + model</small>
+            </article>
+            <article class="canvas-node canvas-node--act">
+              <span>Act</span>
+              <strong>document-to-knolet-app</strong>
+              <small>workflow choreography</small>
+            </article>
+          </div>
+        </section>
+
         <section class="grid-two">
           <section class="panel">
             <div class="panel-heading">
@@ -123,6 +198,16 @@
             </div>
             <pre class="preview"><code id="previewBody">Select an asset to inspect the generated file.</code></pre>
           </section>
+        </section>
+
+        <section class="panel">
+          <div class="panel-heading">
+            <div>
+              <p class="label">Action Log</p>
+              <h2>What changed when you clicked</h2>
+            </div>
+          </div>
+          <ol id="actionLog" class="action-log"></ol>
         </section>
       </section>
     </main>

@@ -104,6 +104,19 @@ function assetPath({ kind, owner, stage, name }) {
   };
 }
 
+function assetFromUrn(urn) {
+  const match = String(urn || "").match(/^(tal|dance|performer|act)\/@([^/]+)\/([^/]+)\/([^/]+)$/);
+  if (!match) {
+    return null;
+  }
+  return {
+    kind: match[1],
+    owner: match[2],
+    stage: match[3],
+    name: match[4],
+  };
+}
+
 function normalizeBody(kind, urn, body) {
   if (kind === "dance") {
     return String(body || "").trimEnd() + "\n";
@@ -136,6 +149,40 @@ async function writeAsset(payload) {
   await fs.mkdir(path.dirname(filePath), { recursive: true });
   await fs.writeFile(filePath, content);
   return { urn, path: path.relative(root, filePath) };
+}
+
+async function importAsset(payload) {
+  const filename = slug(String(payload.filename || "imported").replace(/\.[^.]+$/, ""), "imported");
+  const content = String(payload.content || "");
+  let body = content;
+  let descriptor = null;
+
+  try {
+    const parsed = JSON.parse(content);
+    descriptor = assetFromUrn(parsed.urn) || {
+      kind: parsed.kind,
+      owner: "martinyblue",
+      stage: "imported",
+      name: parsed.name || filename,
+    };
+    body = parsed;
+  } catch {
+    descriptor = {
+      kind: "dance",
+      owner: "martinyblue",
+      stage: "imported",
+      name: filename === "skill" ? "imported-skill" : filename,
+    };
+  }
+
+  if (!descriptor || !assetKinds.has(slug(descriptor.kind, ""))) {
+    throw new Error("Imported file must be a DOT JSON asset or a Dance markdown file.");
+  }
+
+  return writeAsset({
+    ...descriptor,
+    body,
+  });
 }
 
 async function walk(dir, files = []) {
@@ -301,7 +348,11 @@ async function serveStatic(url, response, method = "GET") {
     "content-type": type,
     "content-length": content.length,
   });
-  response.end(method === "HEAD" ? undefined : content);
+  if (method === "HEAD") {
+    response.end();
+    return;
+  }
+  response.end(content);
 }
 
 async function route(request, response) {
@@ -327,6 +378,12 @@ async function route(request, response) {
   if (url.pathname === "/api/assets" && request.method === "POST") {
     const payload = await parseBody(request);
     send(response, 200, await writeAsset(payload));
+    return;
+  }
+
+  if (url.pathname === "/api/import" && request.method === "POST") {
+    const payload = await parseBody(request);
+    send(response, 200, await importAsset(payload));
     return;
   }
 

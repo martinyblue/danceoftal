@@ -95,9 +95,13 @@ const elements = {
   assetBody: document.querySelector("#assetBody"),
   urnPreview: document.querySelector("#urnPreview"),
   loadTemplate: document.querySelector("#loadTemplate"),
+  assetImport: document.querySelector("#assetImport"),
+  importAsset: document.querySelector("#importAsset"),
   assetList: document.querySelector("#assetList"),
   previewTitle: document.querySelector("#previewTitle"),
   previewBody: document.querySelector("#previewBody"),
+  actionLog: document.querySelector("#actionLog"),
+  workflowCanvas: document.querySelector("#workflowCanvas"),
 };
 
 async function request(path, options = {}) {
@@ -138,6 +142,15 @@ function loadTemplate() {
   updateUrnPreview();
 }
 
+function logAction(message) {
+  const item = document.createElement("li");
+  item.textContent = `${new Date().toLocaleTimeString()} ${message}`;
+  elements.actionLog.prepend(item);
+  while (elements.actionLog.children.length > 8) {
+    elements.actionLog.lastElementChild.remove();
+  }
+}
+
 function renderStatus(status) {
   elements.workspaceState.textContent = status.workspaceExists
     ? ".dance-of-tal ready"
@@ -145,6 +158,26 @@ function renderStatus(status) {
   elements.assetCount.textContent = `${status.assetCount} assets`;
   if (status.officialAssets) {
     elements.assetCount.textContent = `${status.assetCount} assets (${status.officialAssets} official)`;
+  }
+}
+
+function renderCanvas(assets) {
+  const assetSet = new Set(assets.map((asset) => asset.urn));
+  const checks = {
+    tal: assetSet.has("tal/@martinyblue/local/knolet-architect"),
+    dance: assetSet.has("dance/@martinyblue/local/source-document-parser"),
+    performer: assetSet.has("performer/@martinyblue/local/knolet-builder"),
+    act: assetSet.has("act/@martinyblue/local/document-to-knolet-app"),
+  };
+
+  for (const node of elements.workflowCanvas.querySelectorAll(".canvas-node")) {
+    const helper = node.querySelector("small");
+    helper.dataset.baseText ||= helper.textContent;
+    const kind = [...node.classList]
+      .find((className) => className.startsWith("canvas-node--"))
+      ?.replace("canvas-node--", "");
+    node.dataset.ready = checks[kind] ? "true" : "false";
+    helper.textContent = checks[kind] ? helper.dataset.baseText : `missing: ${helper.dataset.baseText}`;
   }
 }
 
@@ -174,6 +207,8 @@ async function refresh() {
   const status = await request("/api/status");
   renderStatus(status);
   renderAssets(status.assets);
+  renderCanvas(status.assets);
+  logAction(`Refreshed workspace: ${status.assetCount} assets, ${status.officialAssets || 0} official.`);
 }
 
 async function previewAsset(filePath) {
@@ -197,17 +232,41 @@ async function createAsset(event) {
   });
   await refresh();
   await previewAsset(result.path);
+  logAction(`Wrote ${result.urn} to ${result.path}.`);
+}
+
+async function importSelectedAsset() {
+  const file = elements.assetImport.files?.[0];
+  if (!file) {
+    throw new Error("Choose a .json or .md file first.");
+  }
+
+  const content = await file.text();
+  const result = await request("/api/import", {
+    method: "POST",
+    body: JSON.stringify({
+      filename: file.name,
+      content,
+    }),
+  });
+  await refresh();
+  await previewAsset(result.path);
+  logAction(`Imported ${file.name} as ${result.urn}.`);
 }
 
 async function runAction(button, action) {
   button.disabled = true;
+  const originalText = button.textContent;
+  button.textContent = "Working...";
   try {
     await action();
   } catch (error) {
     elements.previewTitle.textContent = "Error";
     elements.previewBody.textContent = error.message;
+    logAction(`Error: ${error.message}`);
   } finally {
     button.disabled = false;
+    button.textContent = originalText;
   }
 }
 
@@ -223,16 +282,21 @@ for (const input of [
 elements.assetKind.addEventListener("change", loadTemplate);
 elements.loadTemplate.addEventListener("click", loadTemplate);
 elements.assetForm.addEventListener("submit", createAsset);
+elements.importAsset.addEventListener("click", () =>
+  runAction(elements.importAsset, importSelectedAsset),
+);
 elements.initWorkspace.addEventListener("click", () =>
   runAction(elements.initWorkspace, async () => {
-    await request("/api/init", { method: "POST", body: "{}" });
+    const result = await request("/api/init", { method: "POST", body: "{}" });
     await refresh();
+    logAction(`Initialized ${result.workspace}.`);
   }),
 );
 elements.seedWorkspace.addEventListener("click", () =>
   runAction(elements.seedWorkspace, async () => {
-    await request("/api/seed", { method: "POST", body: "{}" });
+    const result = await request("/api/seed", { method: "POST", body: "{}" });
     await refresh();
+    logAction(`Created sample flow: ${result.written.length} files written.`);
   }),
 );
 elements.refreshWorkspace.addEventListener("click", () =>
