@@ -1,6 +1,6 @@
 {
   "kind": "performer",
-  "urn": "performer/@martinyblue/knolet/knolet-builder",
+  "urn": "performer/@martinyblue/danceoftal/knolet-builder",
   "description": "Builds Knolet workflow apps from source documents.",
   "tags": [
     "knolet",
@@ -8,9 +8,9 @@
     "local"
   ],
   "payload": {
-    "tal": "tal/@martinyblue/knolet/knolet-architect",
+    "tal": "tal/@martinyblue/danceoftal/knolet-architect",
     "dances": [
-      "dance/@martinyblue/knolet/source-document-parser"
+      "dance/@martinyblue/danceoftal/source-document-parser"
     ],
     "model": {
       "provider": "opencode",

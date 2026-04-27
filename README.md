@@ -64,9 +64,41 @@ dot-studio doctor . --verbose
 - initialize `.dance-of-tal/`
 - create Tal, Dance, Performer, and Act assets
 - create a sample Knolet-oriented flow
+- write canonical DOT Studio assets under `.dance-of-tal/assets/`
+- seed the DOT Studio canvas with a visible Performer and Act example
+- search the DOT registry through the running DOT Studio API
+- install working registry assets into the current stage workspace
+- add Dance packages from GitHub sources when the source repository is reachable
 - list generated assets
 - preview generated JSON and `SKILL.md` files
 - inspect official `dot install` assets under `.dance-of-tal/assets/`
+
+## Operator Flow
+
+Use the Manager at <http://127.0.0.1:8080> in this order:
+
+1. `작업공간 준비`: creates the local `.dance-of-tal/` workspace.
+2. `Knolet 예시 만들기`: creates Tal, Dance, Performer, and Act files.
+3. `Studio 캔버스에 배치`: saves a visible sample canvas into DOT Studio.
+4. Open DOT Studio at <http://127.0.0.1:43110> and refresh the page if it was
+   already open.
+
+The Manager is a custom local operator UI for this repository. The official
+dance-of-tal surfaces are `dot` CLI and DOT Studio; the Manager exists only to
+make local verification and repeated setup easier.
+
+## Registry Notes
+
+The URL
+`https://danceoftal.com/registry/dance/%40404kidwiz/claude-supercode-skills/quant-analyst`
+currently renders as `Invalid Package | DOT Registry`, but registry search still
+returns the URN `dance/@404kidwiz/claude-supercode-skills/quant-analyst`.
+Installing that URN currently fails because the backing GitHub repository is not
+reachable. A verified install example is:
+
+```bash
+dot install dance/@monarchjuno/vibe-investing/quant-research
+```
 
 ## Deployment
 

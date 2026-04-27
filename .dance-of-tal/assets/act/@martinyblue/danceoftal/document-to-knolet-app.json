@@ -1,6 +1,6 @@
 {
   "kind": "act",
-  "urn": "act/@martinyblue/knolet/document-to-knolet-app",
+  "urn": "act/@martinyblue/danceoftal/document-to-knolet-app",
   "description": "Turns source documents into Knolet app specs.",
   "tags": [
     "knolet",
@@ -15,7 +15,7 @@
     "participants": [
       {
         "key": "builder",
-        "performer": "performer/@martinyblue/knolet/knolet-builder",
+        "performer": "performer/@martinyblue/danceoftal/knolet-builder",
         "subscriptions": {
           "messagesFrom": []
         }
@@ -23,5 +23,5 @@
     ],
     "relations": []
   },
-  "updatedAt": "2026-04-27T08:45:25.786Z"
+  "updatedAt": "2026-04-27T08:45:25.787Z"
 }

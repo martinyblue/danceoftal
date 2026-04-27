@@ -6,7 +6,7 @@ const templates = {
   tal: {
     kind: "tal",
     owner: "martinyblue",
-    stage: "local",
+    stage: "danceoftal",
     name: "knolet-architect",
     body: {
       name: "Knolet Architect",
@@ -21,7 +21,7 @@ const templates = {
   dance: {
     kind: "dance",
     owner: "martinyblue",
-    stage: "local",
+    stage: "danceoftal",
     name: "source-document-parser",
     body: `---
 name: source-document-parser
@@ -44,14 +44,14 @@ Use this Dance when a Knolet workspace needs to turn source material into a stru
   performer: {
     kind: "performer",
     owner: "martinyblue",
-    stage: "local",
+    stage: "danceoftal",
     name: "knolet-builder",
     body: {
-      tal: "tal/@martinyblue/local/knolet-architect",
-      dances: ["dance/@martinyblue/local/source-document-parser"],
+      tal: "tal/@martinyblue/danceoftal/knolet-architect",
+      dances: ["dance/@martinyblue/danceoftal/source-document-parser"],
       model: {
-        provider: "openai",
-        name: "gpt-5.4",
+        provider: "opencode",
+        modelId: "hy3-preview-free",
       },
       tools: {
         mcp: [],
@@ -62,13 +62,13 @@ Use this Dance when a Knolet workspace needs to turn source material into a stru
   act: {
     kind: "act",
     owner: "martinyblue",
-    stage: "local",
+    stage: "danceoftal",
     name: "document-to-knolet-app",
     body: {
       participants: [
         {
-          id: "builder",
-          performer: "performer/@martinyblue/local/knolet-builder",
+          key: "builder",
+          performer: "performer/@martinyblue/danceoftal/knolet-builder",
         },
       ],
       relations: [],
@@ -87,6 +87,7 @@ const elements = {
   initWorkspace: document.querySelector("#initWorkspace"),
   seedWorkspace: document.querySelector("#seedWorkspace"),
   refreshWorkspace: document.querySelector("#refreshWorkspace"),
+  seedStudio: document.querySelector("#seedStudio"),
   assetForm: document.querySelector("#assetForm"),
   assetKind: document.querySelector("#assetKind"),
   assetOwner: document.querySelector("#assetOwner"),
@@ -102,6 +103,15 @@ const elements = {
   previewBody: document.querySelector("#previewBody"),
   actionLog: document.querySelector("#actionLog"),
   workflowCanvas: document.querySelector("#workflowCanvas"),
+  studioState: document.querySelector("#studioState"),
+  registryKind: document.querySelector("#registryKind"),
+  registryQuery: document.querySelector("#registryQuery"),
+  searchRegistry: document.querySelector("#searchRegistry"),
+  registryResults: document.querySelector("#registryResults"),
+  installUrn: document.querySelector("#installUrn"),
+  installAsset: document.querySelector("#installAsset"),
+  githubSource: document.querySelector("#githubSource"),
+  addGithubDance: document.querySelector("#addGithubDance"),
 };
 
 async function request(path, options = {}) {
@@ -166,16 +176,20 @@ function renderCanvas(assets) {
   const checks = {
     tal:
       assetSet.has("tal/@martinyblue/local/knolet-architect") ||
-      assetSet.has("tal/@martinyblue/knolet/knolet-architect"),
+      assetSet.has("tal/@martinyblue/knolet/knolet-architect") ||
+      assetSet.has("tal/@martinyblue/danceoftal/knolet-architect"),
     dance:
       assetSet.has("dance/@martinyblue/local/source-document-parser") ||
-      assetSet.has("dance/@martinyblue/knolet/source-document-parser"),
+      assetSet.has("dance/@martinyblue/knolet/source-document-parser") ||
+      assetSet.has("dance/@martinyblue/danceoftal/source-document-parser"),
     performer:
       assetSet.has("performer/@martinyblue/local/knolet-builder") ||
-      assetSet.has("performer/@martinyblue/knolet/knolet-builder"),
+      assetSet.has("performer/@martinyblue/knolet/knolet-builder") ||
+      assetSet.has("performer/@martinyblue/danceoftal/knolet-builder"),
     act:
       assetSet.has("act/@martinyblue/local/document-to-knolet-app") ||
-      assetSet.has("act/@martinyblue/knolet/document-to-knolet-app"),
+      assetSet.has("act/@martinyblue/knolet/document-to-knolet-app") ||
+      assetSet.has("act/@martinyblue/danceoftal/document-to-knolet-app"),
   };
 
   for (const node of elements.workflowCanvas.querySelectorAll(".canvas-node")) {
@@ -186,6 +200,31 @@ function renderCanvas(assets) {
       ?.replace("canvas-node--", "");
     node.dataset.ready = checks[kind] ? "true" : "false";
     helper.textContent = checks[kind] ? helper.dataset.baseText : `아직 없음: ${helper.dataset.baseText}`;
+  }
+}
+
+function renderRegistryResults(results) {
+  elements.registryResults.innerHTML = "";
+  const items = Array.isArray(results) ? results : results.items || results.results || [];
+  if (!items.length) {
+    const empty = document.createElement("p");
+    empty.className = "empty";
+    empty.textContent = "검색 결과가 없습니다. 다른 단어나 kind로 다시 검색하세요.";
+    elements.registryResults.append(empty);
+    return;
+  }
+
+  for (const item of items) {
+    const urn = item.urn || item.id || item.name;
+    const row = document.createElement("button");
+    row.className = "asset-row";
+    row.type = "button";
+    row.innerHTML = `<strong>${urn}</strong><span>${item.description || item.summary || "설명 없음"}</span>`;
+    row.addEventListener("click", () => {
+      elements.installUrn.value = urn;
+      logAction(`설치할 URN을 선택했습니다: ${urn}`);
+    });
+    elements.registryResults.append(row);
   }
 }
 
@@ -262,6 +301,57 @@ async function importSelectedAsset() {
   logAction(`파일 가져오기 완료: ${file.name}`);
 }
 
+async function seedStudioCanvas() {
+  const result = await request("/api/studio/seed", { method: "POST", body: "{}" });
+  await refresh();
+  elements.studioState.textContent = "DOT Studio 캔버스에 Knolet 예시가 배치됨";
+  logAction(`DOT Studio 캔버스를 준비했습니다. workspace id: ${result.workspace.id || "updated"}`);
+}
+
+async function checkStudioStatus() {
+  const result = await request("/api/studio/status");
+  const count = Array.isArray(result.workspaces) ? result.workspaces.length : 0;
+  elements.studioState.textContent = `연결됨: ${result.health.project || "DOT Studio"} / workspace ${count}개`;
+  logAction("DOT Studio 연결 상태를 확인했습니다.");
+}
+
+async function searchRegistry() {
+  const query = elements.registryQuery.value.trim();
+  if (!query) {
+    throw new Error("검색할 단어를 입력하세요.");
+  }
+  const kind = elements.registryKind.value;
+  const result = await request(`/api/dot/search?q=${encodeURIComponent(query)}&kind=${encodeURIComponent(kind)}`);
+  renderRegistryResults(result);
+  logAction(`Registry 검색 완료: ${query}`);
+}
+
+async function installAsset() {
+  const urn = elements.installUrn.value.trim();
+  if (!urn) {
+    throw new Error("설치할 URN을 입력하거나 검색 결과를 선택하세요.");
+  }
+  await request("/api/dot/install", {
+    method: "POST",
+    body: JSON.stringify({ urn, scope: "stage" }),
+  });
+  await refresh();
+  logAction(`Registry asset 설치 요청 완료: ${urn}`);
+}
+
+async function addGithubDance() {
+  const source = elements.githubSource.value.trim();
+  if (!source) {
+    throw new Error("GitHub 주소 또는 owner/repo/path를 입력하세요.");
+  }
+  await request("/api/dot/add", {
+    method: "POST",
+    body: JSON.stringify({ source, scope: "stage" }),
+  });
+  await refresh();
+  logAction(`GitHub Dance 추가 요청 완료: ${source}`);
+}
+
 async function runAction(button, action) {
   button.disabled = true;
   const originalText = button.textContent;
@@ -310,9 +400,24 @@ elements.seedWorkspace.addEventListener("click", () =>
 elements.refreshWorkspace.addEventListener("click", () =>
   runAction(elements.refreshWorkspace, refresh),
 );
+elements.seedStudio.addEventListener("click", () =>
+  runAction(elements.seedStudio, seedStudioCanvas),
+);
+elements.searchRegistry.addEventListener("click", () =>
+  runAction(elements.searchRegistry, searchRegistry),
+);
+elements.installAsset.addEventListener("click", () =>
+  runAction(elements.installAsset, installAsset),
+);
+elements.addGithubDance.addEventListener("click", () =>
+  runAction(elements.addGithubDance, addGithubDance),
+);
 
 loadTemplate();
 refresh().catch((error) => {
   elements.previewTitle.textContent = "Startup error";
   elements.previewBody.textContent = error.message;
+});
+checkStudioStatus().catch(() => {
+  elements.studioState.textContent = "DOT Studio 연결 대기 중";
 });

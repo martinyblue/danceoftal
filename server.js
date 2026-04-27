@@ -5,6 +5,7 @@ const http = require("node:http");
 const root = process.cwd();
 const workspaceRoot = path.join(root, ".dance-of-tal");
 const port = Number(process.env.PORT || 8080);
+const studioUrl = process.env.DOT_STUDIO_URL || "http://127.0.0.1:43110";
 
 const contentTypes = {
   ".html": "text/html; charset=utf-8",
@@ -111,7 +112,7 @@ function officialAssetPath({ kind, owner, stage, name }) {
   }
 
   const cleanOwner = slug(owner, "martinyblue");
-  const cleanStage = slug(stage, "knolet");
+  const cleanStage = slug(stage, "danceoftal");
   const cleanName = slug(name, "asset");
   const ownerDir = `@${cleanOwner}`;
 
@@ -165,6 +166,89 @@ function normalizeBody(kind, urn, body) {
   );
 }
 
+function officialBody(kind, urn, body) {
+  if (kind === "dance") {
+    return normalizeBody(kind, urn, body);
+  }
+
+  const parsed = typeof body === "string" && body.trim() ? JSON.parse(body) : body || {};
+
+  if (kind === "tal") {
+    const content = [
+      `# ${parsed.name || "Knolet Architect"}`,
+      "",
+      parsed.summary || "Domain knowledge to executable workflow app designer.",
+      "",
+      "## Operating rules",
+      ...(parsed.instructions || []).map((item) => `- ${item}`),
+    ].join("\n");
+    return JSON.stringify(
+      {
+        kind,
+        urn,
+        description: parsed.summary || parsed.description || parsed.name || urn,
+        tags: ["knolet", "workflow", "local"],
+        payload: { content },
+        updatedAt: new Date().toISOString(),
+      },
+      null,
+      2,
+    );
+  }
+
+  if (kind === "performer") {
+    return JSON.stringify(
+      {
+        kind,
+        urn,
+        description: parsed.description || "Builds Knolet workflow apps from source documents.",
+        tags: ["knolet", "builder", "local"],
+        payload: {
+          tal: "tal/@martinyblue/danceoftal/knolet-architect",
+          dances: ["dance/@martinyblue/danceoftal/source-document-parser"],
+          model: { provider: "opencode", modelId: "hy3-preview-free" },
+          ...(parsed.tools?.mcp?.length ? { mcp_config: parsed.tools.mcp } : {}),
+        },
+        updatedAt: new Date().toISOString(),
+      },
+      null,
+      2,
+    );
+  }
+
+  if (kind === "act") {
+    return JSON.stringify(
+      {
+        kind,
+        urn,
+        description: parsed.description || "Turns source documents into Knolet app specs.",
+        tags: ["knolet", "workflow", "local"],
+        payload: {
+          actRules: parsed.actRules || [
+            "Source interpretation and runtime app generation must remain separate.",
+            "Output must include Source Document, Knowledge Structure, KnoletSpec, Runtime App, Version/Fork/Share.",
+          ],
+          participants: [
+            {
+              key: "builder",
+              performer: "performer/@martinyblue/danceoftal/knolet-builder",
+              subscriptions: {
+                messagesFrom: [],
+              },
+            },
+          ],
+          relations: [],
+        },
+        updatedAt: new Date().toISOString(),
+      },
+      null,
+      2,
+    );
+  }
+
+  return normalizeBody(kind, urn, body);
+}
+
 async function writeAsset(payload) {
   await ensureWorkspace();
   const kind = slug(payload.kind, "tal");
@@ -179,10 +263,107 @@ async function writeOfficialAsset(payload) {
   await ensureWorkspace();
   const kind = slug(payload.kind, "tal");
   const { urn, filePath } = officialAssetPath({ ...payload, kind });
-  const content = normalizeBody(kind, urn, payload.body);
+  const content = officialBody(kind, urn, payload.body);
   await fs.mkdir(path.dirname(filePath), { recursive: true });
   await fs.writeFile(filePath, content);
   return { urn, path: path.relative(root, filePath) };
+}
+
+function studioWorkspacePayload() {
+  return {
+    schemaVersion: 1,
+    workingDir: root,
+    performers: [
+      {
+        id: "performer-knolet-builder",
+        name: "Knolet Builder",
+        description: "Builds a Knolet app workflow from source documents.",
+        position: { x: 120, y: 120 },
+        width: 400,
+        height: 500,
+        model: { provider: "opencode", modelId: "hy3-preview-free" },
+        modelVariant: null,
+        talRef: { kind: "registry", urn: "tal/@martinyblue/danceoftal/knolet-architect" },
+        danceRefs: [{ kind: "registry", urn: "dance/@martinyblue/danceoftal/source-document-parser" }],
+        mcpServerNames: [],
+        agentId: null,
+        planMode: false,
+        meta: {
+          derivedFrom: "performer/@martinyblue/danceoftal/knolet-builder",
+          authoring: {
+            slug: "knolet-builder",
+            description: "Builds a Knolet app workflow from source documents.",
+            tags: ["knolet", "builder", "local"],
+          },
+        },
+      },
+    ],
+    acts: [
+      {
+        id: "act-document-to-knolet-app",
+        name: "Document to Knolet App",
+        description: "Source document to Knolet app workflow.",
+        position: { x: 620, y: 120 },
+        width: 520,
+        height: 520,
+        actRules: [
+          "Keep source interpretation separate from app generation.",
+          "Output Source Document, Knowledge Structure, KnoletSpec, Runtime App, Version/Fork/Share.",
+        ],
+        participants: {
+          builder: {
+            performerRef: {
+              kind: "registry",
+              urn: "performer/@martinyblue/danceoftal/knolet-builder",
+            },
+            displayName: "Knolet Builder",
+          },
+        },
+        relations: [],
+        meta: {
+          derivedFrom: "act/@martinyblue/danceoftal/document-to-knolet-app",
+          authoring: {
+            slug: "document-to-knolet-app",
+            description: "Source document to Knolet app workflow.",
+            tags: ["knolet", "workflow", "local"],
+          },
+        },
+      },
+    ],
+    chatBindings: {},
+    assistantModel: { provider: "opencode", modelId: "hy3-preview-free" },
+    appliedAssistantActionMessageIds: {},
+    assistantActionResults: {},
+    markdownEditors: [],
+    canvasTerminals: [],
+    hiddenFromList: false,
+  };
+}
+
+async function studioRequest(pathname, options = {}) {
+  const response = await fetch(`${studioUrl}${pathname}`, {
+    headers: { "content-type": "application/json", ...(options.headers || {}) },
+    ...options,
+  });
+  const text = await response.text();
+  let payload = text;
+  try {
+    payload = text ? JSON.parse(text) : {};
+  } catch {
+    payload = { text };
+  }
+  if (!response.ok) {
+    throw new Error(payload.error || payload.message || text || `DOT Studio ${response.status}`);
+  }
+  return payload;
+}
+
+async function seedStudioCanvas() {
+  await seedWorkspace();
+  return studioRequest("/api/workspaces", {
+    method: "PUT",
+    body: JSON.stringify(studioWorkspacePayload()),
+  });
 }
 
 async function importAsset(payload) {
@@ -370,7 +551,7 @@ points, workflow candidates, UI states, and runtime constraints.
     written.push(
       await writeOfficialAsset({
         ...asset,
-        stage: "knolet",
+        stage: "danceoftal",
       }),
     );
   }
@@ -414,6 +595,63 @@ async function route(request, response) {
   if (url.pathname === "/api/seed" && request.method === "POST") {
     const written = await seedWorkspace();
     send(response, 200, { written, status: await status() });
+    return;
+  }
+
+  if (url.pathname === "/api/studio/seed" && request.method === "POST") {
+    const workspace = await seedStudioCanvas();
+    send(response, 200, { workspace, status: await status() });
+    return;
+  }
+
+  if (url.pathname === "/api/studio/status" && request.method === "GET") {
+    const [health, workspaces] = await Promise.all([
+      studioRequest("/api/health"),
+      studioRequest("/api/workspaces?includeHidden=1"),
+    ]);
+    send(response, 200, { health, workspaces });
+    return;
+  }
+
+  if (url.pathname === "/api/dot/search" && request.method === "GET") {
+    const query = encodeURIComponent(url.searchParams.get("q") || "");
+    const kind = encodeURIComponent(url.searchParams.get("kind") || "");
+    const suffix = kind ? `&kind=${kind}` : "";
+    send(response, 200, await studioRequest(`/api/dot/search?q=${query}${suffix}&limit=8`));
+    return;
+  }
+
+  if (url.pathname === "/api/dot/install" && request.method === "POST") {
+    const payload = await parseBody(request);
+    send(
+      response,
+      200,
+      await studioRequest("/api/dot/install", {
+        method: "POST",
+        body: JSON.stringify({
+          urn: payload.urn,
+          localName: payload.localName || undefined,
+          force: payload.force === true,
+          scope: payload.scope || "stage",
+        }),
+      }),
+    );
+    return;
+  }
+
+  if (url.pathname === "/api/dot/add" && request.method === "POST") {
+    const payload = await parseBody(request);
+    send(
+      response,
+      200,
+      await studioRequest("/api/dot/add", {
+        method: "POST",
+        body: JSON.stringify({
+          source: payload.source,
+          scope: payload.scope || "stage",
+        }),
+      }),
+    );
     return;
   }
 

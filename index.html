@@ -37,7 +37,8 @@
           <div class="button-stack">
             <button id="initWorkspace" type="button">1. 작업공간 준비</button>
             <button id="seedWorkspace" type="button">2. Knolet 예시 만들기</button>
-            <button id="refreshWorkspace" type="button">3. 화면 다시 불러오기</button>
+            <button id="seedStudio" type="button">3. Studio 캔버스에 배치</button>
+            <button id="refreshWorkspace" type="button">4. 화면 다시 불러오기</button>
           </div>
         </section>
 
@@ -54,6 +55,10 @@
             </div>
             <div>
               <dt>3번</dt>
+              <dd>DOT Studio 화면에 기본 Performer와 Act를 보이도록 저장합니다.</dd>
+            </div>
+            <div>
+              <dt>4번</dt>
               <dd>파일 목록, 미리보기, 그림 흐름을 최신 상태로 다시 읽습니다.</dd>
             </div>
           </dl>
@@ -111,6 +116,59 @@
               <span>Studio에서 편집</span>
               <p>공식 DOT Studio를 열어 시각 편집을 이어갑니다.</p>
             </article>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-heading">
+            <div>
+              <p class="label">공식 DOT 기능</p>
+              <h2>Registry 설치와 GitHub Dance 추가</h2>
+            </div>
+            <span class="asset-pill" id="studioState">DOT Studio 확인 중</span>
+          </div>
+          <div class="dot-tools">
+            <div class="tool-row">
+              <label>
+                종류
+                <select id="registryKind">
+                  <option value="dance">Dance</option>
+                  <option value="tal">Tal</option>
+                  <option value="performer">Performer</option>
+                  <option value="act">Act</option>
+                </select>
+              </label>
+              <label>
+                Registry 검색어
+                <input id="registryQuery" value="knolet" autocomplete="off" />
+              </label>
+              <button id="searchRegistry" type="button">검색</button>
+            </div>
+            <div id="registryResults" class="asset-list asset-list--compact">
+              <p class="empty">검색을 누르면 dance-of-tal registry 결과가 표시됩니다.</p>
+            </div>
+            <div class="tool-row">
+              <label>
+                설치할 URN
+                <input
+                  id="installUrn"
+                  placeholder="dance/@owner/stage/name"
+                  autocomplete="off"
+                />
+              </label>
+              <button id="installAsset" type="button">현재 workspace에 설치</button>
+            </div>
+            <div class="tool-row">
+              <label>
+                GitHub Dance source
+                <input
+                  id="githubSource"
+                  placeholder="owner/repo/path 또는 GitHub URL"
+                  autocomplete="off"
+                />
+              </label>
+              <button id="addGithubDance" class="secondary" type="button">GitHub에서 Dance 추가</button>
+            </div>
           </div>
         </section>
 

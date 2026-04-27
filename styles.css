@@ -329,6 +329,29 @@ textarea {
   line-height: 1.6;
 }
 
+.dot-tools {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+}
+
+.tool-row {
+  display: grid;
+  grid-template-columns: 160px minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: end;
+}
+
+.tool-row:has(label:first-child:last-of-type) {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.asset-list--compact {
+  max-height: 260px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+
 .workflow-canvas {
   position: relative;
   display: grid;
@@ -467,6 +490,11 @@ code {
 
   .asset-form {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .tool-row,
+  .tool-row:has(label:first-child:last-of-type) {
+    grid-template-columns: 1fr;
   }
 }
 

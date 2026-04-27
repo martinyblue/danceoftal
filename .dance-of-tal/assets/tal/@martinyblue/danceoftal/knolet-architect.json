@@ -1,6 +1,6 @@
 {
   "kind": "tal",
-  "urn": "tal/@martinyblue/knolet/knolet-architect",
+  "urn": "tal/@martinyblue/danceoftal/knolet-architect",
   "description": "Domain knowledge to executable workflow app designer.",
   "tags": [
     "knolet",
@@ -10,5 +10,5 @@
   "payload": {
     "content": "# Knolet Architect\n\nDomain knowledge to executable workflow app designer.\n\n## Operating rules\n- Separate identity, knowledge, skills, UI, runtime, and versions.\n- Convert source documents into explicit KnoletSpec candidates.\n- Preserve fork/share/version boundaries in every workflow."
   },
-  "updatedAt": "2026-04-27T08:45:25.786Z"
+  "updatedAt": "2026-04-27T08:45:25.785Z"
 }
