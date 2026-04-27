@@ -847,6 +847,58 @@ async function diagnostics() {
   };
 }
 
+async function launcherHandoff() {
+  const data = await diagnostics();
+  const commands = [
+    {
+      label: "Manager",
+      command: "SHUTDOWN_AFTER_MS=3600000 /tmp/node-v22.11.0-darwin-arm64/bin/node server.js",
+      url: data.urls.manager,
+    },
+    {
+      label: "OpenCode",
+      command: "PATH=\"$PWD/.tools/bin:/tmp/node-v22.11.0-darwin-arm64/bin:$PATH\" npm run opencode",
+      url: data.urls.opencode,
+    },
+    {
+      label: "DOT Studio",
+      command: "PATH=\"$PWD/.tools/bin:/tmp/node-v22.11.0-darwin-arm64/bin:$PATH\" npm run studio",
+      url: data.urls.studio,
+    },
+  ];
+  const blockers = [];
+  if (!data.services.studio.ok) {
+    blockers.push("DOT Studio health check가 실패합니다.");
+  }
+  if (!data.services.opencode.ok || !data.services.opencodeChunk.ok) {
+    blockers.push("OpenCode 기본 URL 또는 화면 파일을 불러오지 못합니다.");
+  }
+  if (!data.git.clean || !data.git.syncedWithOrigin) {
+    blockers.push("GitHub에 반영되지 않은 변경이 있습니다.");
+  }
+  if (!data.workspace.studioWorkspace?.performerCount || !data.workspace.studioWorkspace?.actCount) {
+    blockers.push("Studio canvas에 Performer와 Act가 모두 배치되어야 합니다.");
+  }
+  return {
+    title: "0.2.0 통합 런처 handoff",
+    summary: "다음 0.2.0에서 하나의 localhost 런처로 묶기 전 필요한 서비스와 확인 항목입니다.",
+    readyFor020: blockers.length === 0,
+    blockers,
+    commands,
+    ports: [
+      { port: 8080, service: "Manager", required: true },
+      { port: 43110, service: "DOT Studio", required: true },
+      { port: 43120, service: "OpenCode", required: true },
+    ],
+    next020Scope: [
+      "Manager, DOT Studio, OpenCode를 하나의 8080 런처 화면에서 상태 관리",
+      "OpenCode 재시작 버튼은 명령 실행 권한과 프로세스 소유권을 확인한 뒤 제공",
+      "1시간 이상 떠 있는 Codex-started 서버 자동 종료 정책 유지",
+      "서비스별 로그/상태/복구 버튼을 통합",
+    ],
+  };
+}
+
 async function seedStudioCanvas() {
   await seedWorkspace();
   return studioRequest("/api/workspaces", {
@@ -1482,6 +1534,11 @@ async function route(request, response) {
 
   if (url.pathname === "/api/diagnostics" && request.method === "GET") {
     send(response, 200, await diagnostics());
+    return;
+  }
+
+  if (url.pathname === "/api/launcher/handoff" && request.method === "GET") {
+    send(response, 200, await launcherHandoff());
     return;
   }
 

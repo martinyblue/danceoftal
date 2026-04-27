@@ -97,6 +97,8 @@ const elements = {
   recheckOpenCode: document.querySelector("#recheckOpenCode"),
   toggleOpenCodeGuide: document.querySelector("#toggleOpenCodeGuide"),
   openCodeGuide: document.querySelector("#openCodeGuide"),
+  refreshLauncherHandoff: document.querySelector("#refreshLauncherHandoff"),
+  launcherHandoff: document.querySelector("#launcherHandoff"),
   initWorkspace: document.querySelector("#initWorkspace"),
   seedWorkspace: document.querySelector("#seedWorkspace"),
   refreshWorkspace: document.querySelector("#refreshWorkspace"),
@@ -288,6 +290,42 @@ function renderOpenCodeRecovery(data) {
   elements.opencodeRecovery.querySelector("p").textContent = opencodeOk
     ? "기본 URL과 화면 파일이 정상으로 열립니다."
     : "기본 URL을 다시 열고, 상태 재확인 후에도 실패하면 session URL 안내를 확인하세요.";
+}
+
+function renderLauncherHandoff(handoff) {
+  const blockers = handoff.blockers.length
+    ? handoff.blockers.map((blocker) => `<li>${blocker}</li>`).join("")
+    : "<li>0.2.0 통합 런처로 넘어갈 기본 상태가 준비됐습니다.</li>";
+  const commands = handoff.commands
+    .map(
+      (item) => `
+        <article>
+          <strong>${item.label}</strong>
+          <code>${item.command}</code>
+          <span>${item.url}</span>
+        </article>
+      `,
+    )
+    .join("");
+  const scope = handoff.next020Scope.map((item) => `<li>${item}</li>`).join("");
+  elements.launcherHandoff.dataset.ready = handoff.readyFor020 ? "true" : "false";
+  elements.launcherHandoff.innerHTML = `
+    <div class="launcher-summary">
+      <strong>${handoff.readyFor020 ? "0.2.0 준비 가능" : "0.2.0 전 확인 필요"}</strong>
+      <p>${handoff.summary}</p>
+    </div>
+    <div class="launcher-grid">
+      <div>
+        <h3>확인 항목</h3>
+        <ul>${blockers}</ul>
+      </div>
+      <div>
+        <h3>0.2.0 범위</h3>
+        <ul>${scope}</ul>
+      </div>
+    </div>
+    <div class="launcher-commands">${commands}</div>
+  `;
 }
 
 function renderDiagnostics(data) {
@@ -544,6 +582,12 @@ async function loadWorkflowBlueprint() {
   const workflow = await request("/api/knolet/workflow");
   renderWorkflowBlueprint(workflow);
   logAction(`Knolet workflow blueprint 확인 완료: ${workflow.ready ? "준비됨" : "확인 필요"}`);
+}
+
+async function loadLauncherHandoff() {
+  const handoff = await request("/api/launcher/handoff");
+  renderLauncherHandoff(handoff);
+  logAction(`0.2.0 handoff 확인: ${handoff.readyFor020 ? "준비 가능" : "확인 필요"}`);
 }
 
 function fillRunOutputs(run) {
@@ -866,6 +910,9 @@ elements.runDiagnostics.addEventListener("click", () =>
 elements.recheckOpenCode.addEventListener("click", () =>
   runAction(elements.recheckOpenCode, runDiagnostics),
 );
+elements.refreshLauncherHandoff.addEventListener("click", () =>
+  runAction(elements.refreshLauncherHandoff, loadLauncherHandoff),
+);
 elements.toggleOpenCodeGuide.addEventListener("click", () => {
   elements.openCodeGuide.hidden = !elements.openCodeGuide.hidden;
   elements.toggleOpenCodeGuide.textContent = elements.openCodeGuide.hidden
@@ -915,6 +962,9 @@ runDiagnostics().catch((error) => {
 });
 loadWorkflowBlueprint().catch((error) => {
   elements.workflowBlueprint.innerHTML = `<p class="empty">${error.message}</p>`;
+});
+loadLauncherHandoff().catch((error) => {
+  elements.launcherHandoff.innerHTML = `<p class="empty">${error.message}</p>`;
 });
 loadRuns().catch((error) => {
   elements.runList.innerHTML = `<p class="empty">${error.message}</p>`;

@@ -1,6 +1,6 @@
 # dance-of-tal Local Manager
 
-Version: `0.1.8`
+Version: `0.1.9`
 
 This repository contains a local-first manager for `dance-of-tal` style assets.
 It is built for the project owner, not first-time visitors. The local UI creates
@@ -96,6 +96,8 @@ dot-studio doctor . --verbose
   development step
 - export saved workflow runs as Markdown share packages under
   `.dance-of-tal/exports/`
+- show a pre-`0.2.0` localhost launcher handoff with service commands, blockers,
+  and next launcher scope
 - provide OpenCode recovery actions for opening the base URL, rechecking status,
   and understanding stale `/session` URLs
 - translate common registry and GitHub install failures into non-technical Korean
@@ -120,6 +122,7 @@ Use the Manager at <http://127.0.0.1:8080> in this order:
 7. Save the run inputs and captured outputs in `Workflow 산출물 저장`.
 8. Run `품질 검토` to catch missing or underdeveloped workflow outputs.
 9. Use `공유 패키지 만들기` to produce a Markdown handoff package.
+10. Check `0.2.0 준비` before starting the integrated launcher milestone.
 
 The Manager is a custom local operator UI for this repository. The official
 dance-of-tal surfaces are `dot` CLI and DOT Studio; the Manager exists only to
@@ -152,6 +155,8 @@ a package version bump plus a Git commit pushed to `martinyblue/danceoftal`.
 
 ## Version Notes
 
+- `0.1.9`: added the pre-`0.2.0` launcher handoff panel and API with service
+  commands, blockers, port map, and next launcher scope.
 - `0.1.8`: added Markdown export/share packages for saved workflow runs,
   including source input, captured outputs, and review checklist.
 - `0.1.7`: added saved workflow output quality review with score, pass/fail
