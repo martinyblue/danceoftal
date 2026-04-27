@@ -495,10 +495,118 @@ textarea {
 }
 
 .launcher-summary p,
+.launcher-summary span,
 .launcher-grid li,
-.launcher-commands span {
+.launcher-service p,
+.launcher-service dd,
+.recovery-card p {
   color: var(--muted);
   line-height: 1.5;
+}
+
+.launcher-services {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(180px, 1fr));
+  gap: 10px;
+  overflow-x: auto;
+}
+
+.launcher-service,
+.recovery-card {
+  display: grid;
+  gap: 10px;
+  min-height: 260px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface);
+}
+
+.launcher-service[data-state="ok"],
+.recovery-card[data-state="ok"] {
+  border-color: rgba(36, 90, 70, 0.42);
+}
+
+.launcher-service[data-state="warning"],
+.recovery-card[data-state="warning"] {
+  border-color: rgba(183, 120, 22, 0.5);
+}
+
+.launcher-service[data-state="error"],
+.recovery-card[data-state="error"] {
+  border-color: rgba(142, 63, 50, 0.45);
+}
+
+.launcher-service__head {
+  display: grid;
+  gap: 5px;
+}
+
+.launcher-service__head span {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 850;
+}
+
+.launcher-service dl {
+  display: grid;
+  gap: 7px;
+  margin: 0;
+}
+
+.launcher-service dl div {
+  display: grid;
+  gap: 3px;
+}
+
+.launcher-service dt {
+  color: var(--ink);
+  font-size: 0.75rem;
+  font-weight: 850;
+}
+
+.launcher-service dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+  font-size: 0.82rem;
+}
+
+.launcher-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-self: end;
+}
+
+.launcher-service details {
+  display: grid;
+  gap: 7px;
+  padding-top: 8px;
+  border-top: 1px solid var(--line);
+}
+
+.launcher-service summary {
+  cursor: pointer;
+  color: var(--accent);
+  font-size: 0.82rem;
+  font-weight: 850;
+}
+
+.launcher-service details code {
+  display: block;
+  margin-top: 7px;
+  overflow-wrap: anywhere;
+  color: var(--accent);
+  font-size: 0.8rem;
+  line-height: 1.45;
+}
+
+.launcher-bridge[data-state="ok"] {
+  color: var(--accent);
+}
+
+.launcher-bridge[data-state="warning"] {
+  color: #8b5a10;
 }
 
 .launcher-grid {
@@ -517,6 +625,42 @@ textarea {
   gap: 6px;
   margin: 0;
   padding-left: 20px;
+}
+
+.launcher-grid--ops ul {
+  padding-left: 0;
+  list-style: none;
+}
+
+.launcher-port-list li {
+  display: grid;
+  gap: 4px;
+  padding: 9px 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+
+.launcher-port-list li[data-ready="true"] {
+  border-color: rgba(36, 90, 70, 0.35);
+}
+
+.launcher-port-list li[data-ready="false"] {
+  border-color: rgba(142, 63, 50, 0.4);
+}
+
+.launcher-recovery {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(180px, 1fr));
+  gap: 10px;
+}
+
+.recovery-card {
+  min-height: 168px;
+}
+
+.recovery-card .link-button {
+  width: fit-content;
+  align-self: end;
 }
 
 .launcher-commands {
@@ -996,6 +1140,8 @@ code {
   .guide-columns,
   .readiness-list,
   .launcher-grid,
+  .launcher-services,
+  .launcher-recovery,
   .run-layout,
   .run-form,
   .run-output-grid,

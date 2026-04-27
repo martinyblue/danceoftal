@@ -221,6 +221,28 @@ function serviceCard({ title, ok, state = ok ? "ok" : "error", detail }) {
   `;
 }
 
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
+function formatDuration(ms) {
+  if (!Number.isFinite(ms)) {
+    return "";
+  }
+  const totalMinutes = Math.max(0, Math.ceil(ms / 60000));
+  const hours = Math.floor(totalMinutes / 60);
+  const minutes = totalMinutes % 60;
+  if (hours > 0) {
+    return `${hours}시간 ${minutes}분`;
+  }
+  return `${minutes}분`;
+}
+
 function renderReadiness(checks) {
   elements.readinessChecklist.innerHTML = "";
   for (const check of checks || []) {
@@ -293,39 +315,125 @@ function renderOpenCodeRecovery(data) {
 }
 
 function renderLauncherHandoff(handoff) {
-  const blockers = handoff.blockers.length
-    ? handoff.blockers.map((blocker) => `<li>${blocker}</li>`).join("")
-    : "<li>0.2.0 통합 런처로 넘어갈 기본 상태가 준비됐습니다.</li>";
-  const commands = handoff.commands
+  const lifecycle = handoff.lifecycle || {};
+  const lifecycleDetail =
+    lifecycle.mode === "automatic-shutdown"
+      ? `${lifecycle.label} / 약 ${formatDuration(lifecycle.remainingMs)} 남음`
+      : lifecycle.label || "수동 실행 중";
+  const serviceCards = (handoff.services || [])
     .map(
-      (item) => `
-        <article>
-          <strong>${item.label}</strong>
-          <code>${item.command}</code>
-          <span>${item.url}</span>
+      (service) => {
+        const port = service.portDetail;
+        const processes = port?.processes?.length
+          ? port.processes
+              .map((process) => `${process.command} pid ${process.pid} (${process.user})`)
+              .join(", ")
+          : service.port
+            ? "LISTEN 없음"
+            : "포트 없음";
+        const urlIsPage = service.url && !service.url.startsWith("#");
+        const bridge = service.bridge
+          ? `<p class="launcher-bridge" data-state="${service.bridge.ok ? "ok" : "warning"}">Studio bridge: ${escapeHtml(service.bridge.ok ? "연결됨" : service.bridge.message)}</p>`
+          : "";
+        return `
+        <article class="launcher-service" data-state="${service.state}">
+          <div class="launcher-service__head">
+            <span>${escapeHtml(service.title)}</span>
+            <strong>${escapeHtml(service.status)}</strong>
+          </div>
+          <p>${escapeHtml(service.detail)}</p>
+          ${bridge}
+          <dl>
+            <div><dt>URL</dt><dd>${escapeHtml(service.url || "없음")}</dd></div>
+            <div><dt>Port</dt><dd>${service.port ? `${service.port} / ${escapeHtml(processes)}` : "해당 없음"}</dd></div>
+            <div><dt>Restart</dt><dd>${service.canRestart ? "가능" : escapeHtml(service.restartReason)}</dd></div>
+          </dl>
+          <div class="launcher-actions">
+            ${
+              service.url
+                ? `<a class="link-button" href="${escapeHtml(service.url)}" ${
+                    urlIsPage ? 'target="_blank" rel="noreferrer"' : ""
+                  }>${service.key === "opencode" ? "OpenCode 기본 URL 열기" : service.key === "studio" ? "DOT Studio 열기" : "열기"}</a>`
+                : ""
+            }
+            <button class="secondary" type="button" data-launcher-action="recheck">상태 재확인</button>
+            <button class="secondary" type="button" data-copy-command="${escapeHtml(service.command)}">수동 실행 명령 복사</button>
+          </div>
+          <details>
+            <summary>로그/명령 보기</summary>
+            <code>${escapeHtml(service.logCommand)}</code>
+            <code>${escapeHtml(service.command)}</code>
+          </details>
+        </article>
+      `;
+      },
+    )
+    .join("");
+  const ports = (handoff.ports || [])
+    .map((port) => {
+      const processes = port.processes?.length
+        ? port.processes.map((process) => `${process.command} pid ${process.pid}`).join(", ")
+        : port.error || "대기 중";
+      return `
+        <li data-ready="${port.listening ? "true" : "false"}">
+          <strong>${port.port} / ${escapeHtml(port.service)}</strong>
+          <span>${port.listening ? escapeHtml(processes) : "LISTEN 없음"}</span>
+        </li>
+      `;
+    })
+    .join("");
+  const recoveries = (handoff.recoveryFlows || [])
+    .map(
+      (flow) => `
+        <article class="recovery-card" data-state="${flow.state}">
+          <strong>${escapeHtml(flow.title)}</strong>
+          <p>${escapeHtml(flow.detail)}</p>
+          <a class="link-button" href="${escapeHtml(flow.url)}" ${
+            flow.url?.startsWith("#") ? "" : 'target="_blank" rel="noreferrer"'
+          }>${escapeHtml(flow.action)}</a>
         </article>
       `,
     )
     .join("");
-  const scope = handoff.next020Scope.map((item) => `<li>${item}</li>`).join("");
-  elements.launcherHandoff.dataset.ready = handoff.readyFor020 ? "true" : "false";
+  const issues = handoff.issues?.length
+    ? handoff.issues.map((issue) => `<li>${escapeHtml(issue.title)}: ${escapeHtml(issue.detail)}</li>`).join("")
+    : "<li>통합 런처 기준으로 바로 진행 가능합니다.</li>";
+  elements.launcherHandoff.dataset.ready = handoff.services?.every((service) => service.ok) ? "true" : "false";
   elements.launcherHandoff.innerHTML = `
     <div class="launcher-summary">
-      <strong>${handoff.readyFor020 ? "0.2.0 준비 가능" : "0.2.0 전 확인 필요"}</strong>
-      <p>${handoff.summary}</p>
+      <strong>${escapeHtml(handoff.title)}</strong>
+      <p>${escapeHtml(handoff.objective)}</p>
+      <span>${escapeHtml(lifecycleDetail)}</span>
     </div>
-    <div class="launcher-grid">
+    <div class="launcher-services">${serviceCards}</div>
+    <div class="launcher-grid launcher-grid--ops">
       <div>
-        <h3>확인 항목</h3>
-        <ul>${blockers}</ul>
+        <h3>포트 점검</h3>
+        <ul class="launcher-port-list">${ports}</ul>
       </div>
       <div>
-        <h3>0.2.0 범위</h3>
-        <ul>${scope}</ul>
+        <h3>확인할 일</h3>
+        <ul>${issues}</ul>
       </div>
     </div>
-    <div class="launcher-commands">${commands}</div>
+    <div class="launcher-recovery">${recoveries}</div>
   `;
+
+  for (const button of elements.launcherHandoff.querySelectorAll("[data-copy-command]")) {
+    button.addEventListener("click", async () => {
+      try {
+        await navigator.clipboard.writeText(button.dataset.copyCommand || "");
+        logAction(`명령을 복사했습니다: ${button.dataset.copyCommand || ""}`);
+      } catch (error) {
+        elements.previewTitle.textContent = "Command copy";
+        elements.previewBody.textContent = button.dataset.copyCommand || "";
+        logAction(`클립보드 복사 대신 미리보기에 명령을 표시했습니다: ${error.message}`);
+      }
+    });
+  }
+  for (const button of elements.launcherHandoff.querySelectorAll("[data-launcher-action='recheck']")) {
+    button.addEventListener("click", () => runAction(button, loadLauncherHandoff));
+  }
 }
 
 function renderDiagnostics(data) {
@@ -585,9 +693,9 @@ async function loadWorkflowBlueprint() {
 }
 
 async function loadLauncherHandoff() {
-  const handoff = await request("/api/launcher/handoff");
+  const handoff = await request("/api/launcher");
   renderLauncherHandoff(handoff);
-  logAction(`0.2.0 handoff 확인: ${handoff.readyFor020 ? "준비 가능" : "확인 필요"}`);
+  logAction(`0.2.0 통합 런처 확인: 서비스 ${handoff.services?.length || 0}개.`);
 }
 
 function fillRunOutputs(run) {

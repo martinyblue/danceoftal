@@ -11,6 +11,11 @@ const port = Number(process.env.PORT || 8080);
 const studioUrl = process.env.DOT_STUDIO_URL || "http://127.0.0.1:43110";
 const opencodeUrl = process.env.OPENCODE_URL || "http://127.0.0.1:43120";
 const shutdownAfterMs = Number(process.env.SHUTDOWN_AFTER_MS || 0);
+const managerStartedAt = Date.now();
+const managerShutdownAt =
+  Number.isFinite(shutdownAfterMs) && shutdownAfterMs > 0
+    ? managerStartedAt + shutdownAfterMs
+    : null;
 
 const contentTypes = {
   ".html": "text/html; charset=utf-8",
@@ -561,6 +566,40 @@ async function checkHttpAsset(name, url) {
   }
 }
 
+function parseLsof(stdout, targetPort) {
+  return String(stdout || "")
+    .split("\n")
+    .slice(1)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => {
+      const parts = line.split(/\s+/);
+      return {
+        command: parts[0] || "unknown",
+        pid: parts[1] || "unknown",
+        user: parts[2] || "unknown",
+        name: parts.slice(8).join(" ") || `*: ${targetPort}`,
+      };
+    });
+}
+
+async function checkPort(portNumber, expectedService) {
+  const result = await runCommand("lsof", [
+    "-nP",
+    `-iTCP:${portNumber}`,
+    "-sTCP:LISTEN",
+  ]);
+  const processes = result.ok ? parseLsof(result.stdout, portNumber) : [];
+  return {
+    port: portNumber,
+    service: expectedService,
+    listening: processes.length > 0,
+    processes,
+    checkedBy: "lsof -nP -iTCP:<port> -sTCP:LISTEN",
+    error: result.ok ? null : result.error || result.stderr || "포트 점검 실패",
+  };
+}
+
 async function gitDiagnostics() {
   const [head, shortHead, originMain, branch, statusLines, aheadBehind] = await Promise.all([
     runCommand("git", ["rev-parse", "HEAD"]),
@@ -847,22 +886,231 @@ async function diagnostics() {
   };
 }
 
+function manualCommands() {
+  const portPrefix = port === 8080 ? "" : `PORT=${port} `;
+  const managerCommand = `${portPrefix}SHUTDOWN_AFTER_MS=3600000 ${process.execPath} server.js`;
+  return {
+    manager: managerCommand,
+    opencode:
+      'PATH="$PWD/.tools/bin:/tmp/node-v22.11.0-darwin-arm64/bin:$PATH" npm run opencode',
+    studio:
+      'PATH="$PWD/.tools/bin:/tmp/node-v22.11.0-darwin-arm64/bin:$PATH" npm run studio',
+    githubStatus: "git status --short --branch",
+    githubPush: "git push origin main",
+  };
+}
+
+function managerLifecycle() {
+  const now = Date.now();
+  const automatic = Boolean(managerShutdownAt);
+  return {
+    mode: automatic ? "automatic-shutdown" : "manual",
+    label: automatic ? "자동 종료 예정" : "수동 실행 중",
+    startedAt: new Date(managerStartedAt).toISOString(),
+    shutdownAfterMs: automatic ? shutdownAfterMs : null,
+    shutdownAt: automatic ? new Date(managerShutdownAt).toISOString() : null,
+    remainingMs: automatic ? Math.max(0, managerShutdownAt - now) : null,
+    detail: automatic
+      ? "Codex가 띄운 Manager로 보고 1시간 자동 종료 정책을 적용합니다."
+      : "SHUTDOWN_AFTER_MS가 없어 기존 또는 수동 실행 서버로 취급합니다.",
+  };
+}
+
+function buildRecoveryFlows(data) {
+  const canvasReady = Boolean(
+    data.workspace.studioWorkspace?.performerCount &&
+      data.workspace.studioWorkspace?.actCount,
+  );
+  return [
+    {
+      key: "opencode-stale-session",
+      title: "OpenCode stale session",
+      state:
+        data.services.opencode.ok && data.services.opencodeChunk.ok
+          ? "ok"
+          : "warning",
+      detail:
+        data.services.opencode.ok && data.services.opencodeChunk.ok
+          ? "기본 URL과 화면 파일이 정상입니다."
+          : "/session URL 대신 기본 URL을 열고 강력 새로고침하세요. 계속 실패하면 수동 실행 명령으로 OpenCode를 재시작하세요.",
+      action: "OpenCode 기본 URL 열기",
+      url: data.urls.opencode,
+    },
+    {
+      key: "studio-empty-canvas",
+      title: "DOT Studio canvas 비어 있음",
+      state: canvasReady ? "ok" : "warning",
+      detail: canvasReady
+        ? "Performer와 Act가 canvas에 배치되어 있습니다."
+        : "Manager의 3번 Studio 캔버스에 배치를 누른 뒤 DOT Studio를 새로고침하세요.",
+      action: "DOT Studio 열기",
+      url: data.urls.studio,
+    },
+    {
+      key: "registry-install-failure",
+      title: "Registry install 실패",
+      state: data.services.registry?.ok ? "ok" : "warning",
+      detail: data.services.registry?.ok
+        ? "DOT Studio registry API가 응답합니다. 설치 전 확인을 먼저 쓰세요."
+        : "DOT Studio를 켠 뒤 registry 검색을 다시 시도하고, 실패 카드의 retry/search/GitHub/local fallback을 따라가세요.",
+      action: "Registry 섹션으로 이동",
+      url: "#registry-tools",
+    },
+    {
+      key: "github-push-needed",
+      title: "GitHub push 필요",
+      state: data.git.clean && data.git.syncedWithOrigin ? "ok" : "warning",
+      detail:
+        data.git.clean && data.git.syncedWithOrigin
+          ? `${data.git.branch} / ${data.git.shortHead}가 origin/main과 같습니다.`
+          : `${data.git.changedFiles.length}개 변경 또는 ahead/behind 상태가 있습니다. 완료 후 martinyblue 계정으로 commit/push가 필요합니다.`,
+      action: "GitHub 상태 보기",
+      url: "#launcher-tools",
+    },
+  ];
+}
+
+async function launcher() {
+  const data = await diagnostics();
+  const commands = manualCommands();
+  const portChecks =
+    port === 8080
+      ? [checkPort(8080, "Manager")]
+      : [checkPort(8080, "Manager preferred"), checkPort(port, "Manager current")];
+  const ports = await Promise.all([
+    ...portChecks,
+    checkPort(43110, "DOT Studio"),
+    checkPort(43120, "OpenCode"),
+  ]);
+  const portByNumber = Object.fromEntries(ports.map((item) => [item.port, item]));
+  const studioCanvas = data.workspace.studioWorkspace
+    ? `canvas Performer ${data.workspace.studioWorkspace.performerCount}개, Act ${data.workspace.studioWorkspace.actCount}개`
+    : "canvas 정보 없음";
+  const opencodeReady = Boolean(data.services.opencode.ok && data.services.opencodeChunk.ok);
+  const bridgeReady = Boolean(data.services.opencodeBridge?.ok);
+
+  return {
+    title: "0.2.0 통합 localhost 런처",
+    objective:
+      "Manager를 로컬 전체 서비스의 시작점으로 만들고, 사용자가 8080 하나에서 DOT Studio/OpenCode/Registry/GitHub 상태와 다음 행동을 관리하게 한다.",
+    version: data.version,
+    generatedAt: data.generatedAt,
+    urls: data.urls,
+    lifecycle: managerLifecycle(),
+    ports,
+    services: [
+      {
+        key: "manager",
+        title: "Manager",
+        ok: true,
+        state: "ok",
+        url: data.urls.manager,
+        port,
+        status: `${port} 런처 실행 중`,
+        detail: `${data.workspace.assetCount}개 부품 / 공식형 ${data.workspace.officialAssets}개`,
+        portDetail: portByNumber[port],
+        command: commands.manager,
+        logCommand: `lsof -nP -iTCP:${port} -sTCP:LISTEN`,
+        canRestart: false,
+        restartReason: "현재 요청을 처리 중인 Manager 프로세스라 UI 재시작은 아직 제공하지 않습니다.",
+      },
+      {
+        key: "studio",
+        title: "DOT Studio",
+        ok: data.services.studio.ok,
+        state: data.services.studio.ok ? "ok" : "error",
+        url: data.urls.studio,
+        port: 43110,
+        status: data.services.studio.ok ? "Studio 연결됨" : "Studio 실행 필요",
+        detail: data.services.studio.ok ? studioCanvas : data.services.studio.error || data.services.studio.message,
+        portDetail: portByNumber[43110],
+        command: commands.studio,
+        logCommand: "lsof -nP -iTCP:43110 -sTCP:LISTEN",
+        canRestart: false,
+        restartReason: "프로세스 소유권 확인 전까지는 수동 실행 명령만 제공합니다.",
+      },
+      {
+        key: "opencode",
+        title: "OpenCode",
+        ok: opencodeReady,
+        state: opencodeReady ? "ok" : "error",
+        url: data.urls.opencode,
+        port: 43120,
+        status: opencodeReady ? "OpenCode 연결됨" : "OpenCode 실행 또는 새로고침 필요",
+        detail: opencodeReady
+          ? `기본 URL 정상, Studio bridge ${bridgeReady ? "연결됨" : "확인 필요"}`
+          : "기본 URL 또는 화면 파일을 불러오지 못했습니다.",
+        bridge: {
+          ok: bridgeReady,
+          message: data.services.opencodeBridge?.message || "DOT Studio가 켜진 뒤 bridge를 확인합니다.",
+        },
+        portDetail: portByNumber[43120],
+        command: commands.opencode,
+        logCommand: "lsof -nP -iTCP:43120 -sTCP:LISTEN",
+        canRestart: false,
+        restartReason: "stale session 복구 후에도 실패할 때 터미널에서 수동 재시작하세요.",
+      },
+      {
+        key: "registry",
+        title: "Registry",
+        ok: Boolean(data.services.registry?.ok),
+        state: data.services.registry?.ok ? "ok" : "warning",
+        url: `${data.urls.studio}/api/dot/search?q=knolet&kind=dance&limit=1`,
+        port: 43110,
+        status: data.services.registry?.ok ? "Registry API 응답" : "DOT Studio registry 확인 필요",
+        detail: data.services.registry?.ok
+          ? "검색과 설치 전 확인을 사용할 수 있습니다."
+          : "DOT Studio를 켠 뒤 registry 검색을 다시 시도하세요.",
+        portDetail: portByNumber[43110],
+        command: "Manager의 Registry 섹션에서 검색 후 설치 전 확인을 먼저 실행",
+        logCommand: "DOT Studio 실행 터미널 로그 확인",
+        canRestart: false,
+        restartReason: "Registry는 DOT Studio API를 통해 접근하므로 별도 재시작 대상이 아닙니다.",
+      },
+      {
+        key: "github",
+        title: "GitHub sync",
+        ok: Boolean(data.git.clean && data.git.syncedWithOrigin),
+        state: data.git.clean && data.git.syncedWithOrigin ? "ok" : "warning",
+        url: "https://github.com/martinyblue/danceoftal",
+        port: null,
+        status:
+          data.git.clean && data.git.syncedWithOrigin
+            ? "origin/main 반영됨"
+            : "commit 또는 push 필요",
+        detail:
+          data.git.clean && data.git.syncedWithOrigin
+            ? `${data.git.branch} / ${data.git.shortHead}`
+            : `${data.git.changedFiles.length}개 변경, ahead ${data.git.ahead ?? "?"}, behind ${data.git.behind ?? "?"}`,
+        portDetail: null,
+        command: `${commands.githubStatus} && ${commands.githubPush}`,
+        logCommand: "git log --oneline -5 --decorate",
+        canRestart: false,
+        restartReason: "GitHub sync는 로컬 프로세스가 아니라 commit/push 흐름입니다.",
+      },
+    ],
+    recoveryFlows: buildRecoveryFlows(data),
+    issues: data.issues,
+  };
+}
+
 async function launcherHandoff() {
   const data = await diagnostics();
+  const commandsByKey = manualCommands();
   const commands = [
     {
       label: "Manager",
-      command: "SHUTDOWN_AFTER_MS=3600000 /tmp/node-v22.11.0-darwin-arm64/bin/node server.js",
+      command: commandsByKey.manager,
       url: data.urls.manager,
     },
     {
       label: "OpenCode",
-      command: "PATH=\"$PWD/.tools/bin:/tmp/node-v22.11.0-darwin-arm64/bin:$PATH\" npm run opencode",
+      command: commandsByKey.opencode,
       url: data.urls.opencode,
     },
     {
       label: "DOT Studio",
-      command: "PATH=\"$PWD/.tools/bin:/tmp/node-v22.11.0-darwin-arm64/bin:$PATH\" npm run studio",
+      command: commandsByKey.studio,
       url: data.urls.studio,
     },
   ];
@@ -1534,6 +1782,11 @@ async function route(request, response) {
 
   if (url.pathname === "/api/diagnostics" && request.method === "GET") {
     send(response, 200, await diagnostics());
+    return;
+  }
+
+  if (url.pathname === "/api/launcher" && request.method === "GET") {
+    send(response, 200, await launcher());
     return;
   }
 

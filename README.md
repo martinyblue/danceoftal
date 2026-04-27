@@ -1,6 +1,6 @@
 # dance-of-tal Local Manager
 
-Version: `0.1.9`
+Version: `0.2.0`
 
 This repository contains a local-first manager for `dance-of-tal` style assets.
 It is built for the project owner, not first-time visitors. The local UI creates
@@ -96,8 +96,16 @@ dot-studio doctor . --verbose
   development step
 - export saved workflow runs as Markdown share packages under
   `.dance-of-tal/exports/`
-- show a pre-`0.2.0` localhost launcher handoff with service commands, blockers,
-  and next launcher scope
+- use Manager as a `0.2.0` integrated localhost launcher for Manager, DOT
+  Studio, OpenCode, Registry, and GitHub sync status
+- show service controls for opening URLs, rechecking status, viewing
+  log/diagnostic commands, and copying manual run commands
+- inspect local ports `8080`, `43110`, and `43120`, including listener process
+  summaries when available
+- show whether the Manager is running with the 1-hour `SHUTDOWN_AFTER_MS`
+  automatic shutdown policy or as a manual/existing server
+- guide integrated recovery flows for stale OpenCode sessions, empty DOT Studio
+  canvas, Registry install failures, and pending GitHub push work
 - provide OpenCode recovery actions for opening the base URL, rechecking status,
   and understanding stale `/session` URLs
 - translate common registry and GitHub install failures into non-technical Korean
@@ -122,7 +130,8 @@ Use the Manager at <http://127.0.0.1:8080> in this order:
 7. Save the run inputs and captured outputs in `Workflow 산출물 저장`.
 8. Run `품질 검토` to catch missing or underdeveloped workflow outputs.
 9. Use `공유 패키지 만들기` to produce a Markdown handoff package.
-10. Check `0.2.0 준비` before starting the integrated launcher milestone.
+10. Use `0.2.0 통합 런처` as the starting point for DOT Studio, OpenCode,
+    Registry, and GitHub status checks.
 
 The Manager is a custom local operator UI for this repository. The official
 dance-of-tal surfaces are `dot` CLI and DOT Studio; the Manager exists only to
@@ -137,9 +146,9 @@ If install still fails, the result card explains whether the likely cause is a
 missing/private GitHub repository, permissions, network delay, or invalid asset
 structure, then offers the next action buttons.
 
-The Manager now includes an OpenCode recovery panel. Use `OpenCode 기본 URL 열기`
-first, then `OpenCode 상태 재확인`. OpenCode restart remains a manual terminal
-step until the planned `0.2.0` integrated launcher.
+The Manager now includes an integrated launcher. Use `OpenCode 기본 URL 열기`
+first, then `상태 재확인`. OpenCode restart remains a manual terminal step until
+process ownership checks are safe enough for an in-UI restart button.
 
 If OpenCode shows `Failed to fetch dynamically imported module`, the OpenCode
 browser tab is usually pointing at a stale session while the local OpenCode
@@ -155,6 +164,9 @@ a package version bump plus a Git commit pushed to `martinyblue/danceoftal`.
 
 ## Version Notes
 
+- `0.2.0`: promoted Manager into the integrated localhost launcher with
+  service panels, port/process checks, command copy actions, Manager lifecycle
+  status, and unified recovery flows.
 - `0.1.9`: added the pre-`0.2.0` launcher handoff panel and API with service
   commands, blockers, port map, and next launcher scope.
 - `0.1.8`: added Markdown export/share packages for saved workflow runs,
