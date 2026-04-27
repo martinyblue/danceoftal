@@ -895,8 +895,75 @@ function manualCommands() {
       'PATH="$PWD/.tools/bin:/tmp/node-v22.11.0-darwin-arm64/bin:$PATH" npm run opencode',
     studio:
       'PATH="$PWD/.tools/bin:/tmp/node-v22.11.0-darwin-arm64/bin:$PATH" npm run studio',
+    commercialStudio:
+      "DOT_SUPABASE_URL=https://auth.your-domain.example DOT_SUPABASE_ANON_KEY=<your-public-anon-key> npm run studio:commercial",
+    commercialCheck: "npm run commercial:check",
     githubStatus: "git status --short --branch",
     githubPush: "git push origin main",
+  };
+}
+
+function commercialBoundary() {
+  const upstreamAuthUrl = "https://qbildcrfjencoqkngyfw.supabase.co";
+  const authUrl = process.env.DOT_SUPABASE_URL || "";
+  const anonKey = process.env.DOT_SUPABASE_ANON_KEY || "";
+  const studioDir = process.env.STUDIO_DIR || "";
+  const opencodeConfigDir = process.env.OPENCODE_CONFIG_DIR || "";
+  const dataApiUrl = process.env.DANCEOFTAL_DATA_API_URL || "";
+  const checks = [
+    {
+      key: "dot-auth-backend",
+      ok: Boolean(authUrl && authUrl !== upstreamAuthUrl),
+      warningOnly: false,
+      label: "DOT auth backend",
+      detail: authUrl
+        ? authUrl === upstreamAuthUrl
+          ? "업스트림 DOT Supabase를 사용 중입니다."
+          : `자체 auth backend 사용 중: ${authUrl}`
+        : "DOT_SUPABASE_URL이 없어 DOT 기본 Supabase로 로그인될 수 있습니다.",
+    },
+    {
+      key: "dot-auth-key",
+      ok: Boolean(anonKey),
+      warningOnly: false,
+      label: "DOT auth key",
+      detail: anonKey ? "DOT_SUPABASE_ANON_KEY 설정됨" : "자체 auth backend용 DOT_SUPABASE_ANON_KEY가 필요합니다.",
+    },
+    {
+      key: "studio-data-root",
+      ok: Boolean(studioDir),
+      warningOnly: true,
+      label: "Studio data root",
+      detail: studioDir || "STUDIO_DIR 미설정. 기본 ~/.dot-studio 로컬 저장소를 사용합니다.",
+    },
+    {
+      key: "opencode-data-root",
+      ok: Boolean(opencodeConfigDir),
+      warningOnly: true,
+      label: "OpenCode data root",
+      detail: opencodeConfigDir || "OPENCODE_CONFIG_DIR 미설정. 상업 운영에서는 제품 소유 경로로 고정하세요.",
+    },
+    {
+      key: "product-data-api",
+      ok: Boolean(dataApiUrl),
+      warningOnly: true,
+      label: "Product data API",
+      detail: dataApiUrl || "DANCEOFTAL_DATA_API_URL 미설정. 서버 저장소 전환 전 준비가 필요합니다.",
+    },
+  ];
+  const blockers = checks.filter((check) => !check.ok && !check.warningOnly);
+  const warnings = checks.filter((check) => !check.ok && check.warningOnly);
+  return {
+    ok: blockers.length === 0,
+    state: blockers.length === 0 ? (warnings.length ? "warning" : "ok") : "error",
+    status: blockers.length === 0 ? "상업 데이터 경계 준비 중" : "상업 데이터 경계 미준비",
+    detail:
+      blockers.length === 0
+        ? "로그인 backend는 자체 인프라로 설정됐습니다. workspace 서버 저장소 전환을 이어가면 됩니다."
+        : "업스트림 DOT auth로 로그인될 수 있습니다. 자체 auth backend 설정 후 commercial 실행 스크립트를 사용하세요.",
+    checks,
+    blockers,
+    warnings,
   };
 }
 
@@ -967,12 +1034,23 @@ function buildRecoveryFlows(data) {
       action: "GitHub 상태 보기",
       url: "#launcher-tools",
     },
+    {
+      key: "commercial-data-boundary",
+      title: "상업 데이터 경계",
+      state: data.commercialBoundary?.state || "warning",
+      detail: data.commercialBoundary?.ok
+        ? "DOT auth가 자체 backend로 향합니다. 다음 단계는 workspace 저장 API 전환입니다."
+        : "상업 제품에서는 업스트림 DOT auth 대신 내 auth/data backend로 실행해야 합니다.",
+      action: "상업 실행 명령 보기",
+      url: "#launcher-tools",
+    },
   ];
 }
 
 async function launcher() {
   const data = await diagnostics();
   const commands = manualCommands();
+  const boundary = commercialBoundary();
   const portChecks =
     port === 8080
       ? [checkPort(8080, "Manager")]
@@ -997,6 +1075,7 @@ async function launcher() {
     generatedAt: data.generatedAt,
     urls: data.urls,
     lifecycle: managerLifecycle(),
+    commercialBoundary: boundary,
     ports,
     services: [
       {
@@ -1068,6 +1147,21 @@ async function launcher() {
         restartReason: "Registry는 DOT Studio API를 통해 접근하므로 별도 재시작 대상이 아닙니다.",
       },
       {
+        key: "commercial-boundary",
+        title: "Commercial data boundary",
+        ok: boundary.ok,
+        state: boundary.state,
+        url: "#launcher-tools",
+        port: null,
+        status: boundary.status,
+        detail: boundary.detail,
+        portDetail: null,
+        command: `${commands.commercialCheck} && ${commands.commercialStudio}`,
+        logCommand: "printenv DOT_SUPABASE_URL DOT_SUPABASE_ANON_KEY STUDIO_DIR OPENCODE_CONFIG_DIR DANCEOFTAL_DATA_API_URL",
+        canRestart: false,
+        restartReason: "상업 실행은 upstream auth 차단을 위해 npm run studio:commercial로 별도 시작합니다.",
+      },
+      {
         key: "github",
         title: "GitHub sync",
         ok: Boolean(data.git.clean && data.git.syncedWithOrigin),
@@ -1089,7 +1183,7 @@ async function launcher() {
         restartReason: "GitHub sync는 로컬 프로세스가 아니라 commit/push 흐름입니다.",
       },
     ],
-    recoveryFlows: buildRecoveryFlows(data),
+    recoveryFlows: buildRecoveryFlows({ ...data, commercialBoundary: boundary }),
     issues: data.issues,
   };
 }

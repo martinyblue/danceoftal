@@ -4,3 +4,6 @@ node_modules
 dist
 .tools
 .opencode
+.env
+.env.*
+!.env.commercial.example

@@ -1,6 +1,6 @@
 # dance-of-tal Local Manager
 
-Version: `0.2.2`
+Version: `0.2.3`
 
 This repository contains a local-first manager for `dance-of-tal` style assets.
 It is built for the project owner, not first-time visitors. The local UI creates
@@ -39,6 +39,32 @@ before starting Studio:
 
 ```bash
 PATH="$PWD/.tools/bin:/tmp/node-v22.11.0-darwin-arm64/bin:$PATH" npm run studio:patch-resize
+```
+
+For commercial product work, do not use the default DOT auth backend. Configure
+your own auth/data backend and start Studio through the guarded command:
+
+```bash
+set -a
+source .env.commercial.example
+set +a
+npm run commercial:check
+npm run studio:commercial
+```
+
+Or export the same values manually:
+
+```bash
+DOT_SUPABASE_URL=https://auth.your-domain.example \
+DOT_SUPABASE_ANON_KEY=<your-public-anon-key> \
+DANCEOFTAL_DATA_API_URL=https://api.your-domain.example \
+npm run studio:commercial
+```
+
+Check the boundary before running a commercial session:
+
+```bash
+npm run commercial:check
 ```
 
 Start OpenCode and DOT Studio in separate terminals when restarting manually:
@@ -115,6 +141,9 @@ dot-studio doctor . --verbose
   canvas, Registry install failures, and pending GitHub push work
 - patch the repo-local DOT Studio build so selected canvas boxes show resize
   handles immediately, expose a larger corner grip, and allow wider zoom-out
+- block commercial Studio startup when DOT auth would fall back to the upstream
+  open-source backend instead of a product-owned auth server
+- show commercial data-boundary status in the Manager launcher
 - provide OpenCode recovery actions for opening the base URL, rechecking status,
   and understanding stale `/session` URLs
 - translate common registry and GitHub install failures into non-technical Korean
@@ -146,6 +175,28 @@ The Manager is a custom local operator UI for this repository. The official
 dance-of-tal surfaces are `dot` CLI and DOT Studio; the Manager exists only to
 make local verification and repeated setup easier.
 
+## Commercial Data Boundary
+
+Commercial development should move every user/customer data path under
+product-owned infrastructure:
+
+- Auth: set `DOT_SUPABASE_URL` and `DOT_SUPABASE_ANON_KEY` to a backend you own.
+  The guarded `npm run studio:commercial` command refuses to start if those are
+  missing, because DOT would otherwise fall back to the upstream Supabase
+  project.
+- Studio workspace data: development still stores snapshots locally under
+  `STUDIO_DIR` or `~/.dot-studio/workspaces`. The next product step is replacing
+  that local workspace persistence with a server API owned by this product.
+- OpenCode/session data: set `OPENCODE_CONFIG_DIR` to a product-owned path for
+  development, then move production execution logs/session state to the product
+  backend.
+- Registry/GitHub/publish flows: keep them explicit user actions. Do not publish
+  or sync customer workspace data unless the product UI says exactly where it
+  will go.
+
+The Manager launcher includes a `Commercial data boundary` card so a developer
+can see whether the current run is still using unsafe defaults.
+
 ## Troubleshooting
 
 For registry installs, use `설치 전 확인` before `현재 workspace에 설치`.
@@ -173,6 +224,8 @@ a package version bump plus a Git commit pushed to `martinyblue/danceoftal`.
 
 ## Version Notes
 
+- `0.2.3`: added commercial data-boundary checks and a guarded Studio launcher
+  that requires product-owned DOT auth configuration.
 - `0.2.2`: widened the local DOT Studio canvas zoom-out range so larger
   workflows can fit in one view.
 - `0.2.1`: added a repeatable local DOT Studio patch that makes selected canvas
