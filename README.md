@@ -1,7 +1,13 @@
-# Dance of Tal
+# dance-of-tal Local Brief
 
-Dance of Tal is a lightweight static website for introducing Korean mask dance
-content, programs, and future archive material.
+This repository contains a local-first static explainer for `dance-of-tal`, an
+AI agent package manager and visual choreography tool. The page summarizes the
+core model:
+
+- `Tal`: agent identity and instruction layer
+- `Dance`: reusable skill package
+- `Performer`: runnable agent composed from Tal, Dances, model, and tools/MCP
+- `Act`: workflow/choreography for multiple performers
 
 ## Local Development
 
@@ -15,8 +21,8 @@ Then open <http://127.0.0.1:8080>.
 
 ## Deployment
 
-This project is ready for Vercel static deployment. The production output is the
-repository root.
+The current working target is local host. Vercel deployment is intentionally not
+part of this setup.
 
 ## Repository
 
