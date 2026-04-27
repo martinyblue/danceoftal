@@ -1,11 +1,13 @@
 const fs = require("node:fs/promises");
 const path = require("node:path");
 const http = require("node:http");
+const { execFile } = require("node:child_process");
 
 const root = process.cwd();
 const workspaceRoot = path.join(root, ".dance-of-tal");
 const port = Number(process.env.PORT || 8080);
 const studioUrl = process.env.DOT_STUDIO_URL || "http://127.0.0.1:43110";
+const opencodeUrl = process.env.OPENCODE_URL || "http://127.0.0.1:43120";
 
 const contentTypes = {
   ".html": "text/html; charset=utf-8",
@@ -58,6 +60,42 @@ async function exists(target) {
     return true;
   } catch {
     return false;
+  }
+}
+
+function runCommand(command, args = []) {
+  return new Promise((resolve) => {
+    execFile(command, args, { cwd: root, timeout: 5000 }, (error, stdout, stderr) => {
+      resolve({
+        ok: !error,
+        stdout: String(stdout || "").trim(),
+        stderr: String(stderr || "").trim(),
+        error: error ? error.message : null,
+      });
+    });
+  });
+}
+
+async function fetchWithTimeout(url, options = {}) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), options.timeoutMs || 2500);
+  try {
+    return await fetch(url, {
+      ...options,
+      signal: controller.signal,
+      headers: { "content-type": "application/json", ...(options.headers || {}) },
+    });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+async function readPackageVersion() {
+  try {
+    const pkg = JSON.parse(await fs.readFile(path.join(root, "package.json"), "utf8"));
+    return pkg.version || "unknown";
+  } catch {
+    return "unknown";
   }
 }
 
@@ -341,7 +379,7 @@ function studioWorkspacePayload() {
 }
 
 async function studioRequest(pathname, options = {}) {
-  const response = await fetch(`${studioUrl}${pathname}`, {
+  const response = await fetchWithTimeout(`${studioUrl}${pathname}`, {
     headers: { "content-type": "application/json", ...(options.headers || {}) },
     ...options,
   });
@@ -356,6 +394,207 @@ async function studioRequest(pathname, options = {}) {
     throw new Error(payload.error || payload.message || text || `DOT Studio ${response.status}`);
   }
   return payload;
+}
+
+async function checkHttpJson(name, url) {
+  try {
+    const response = await fetchWithTimeout(url);
+    const text = await response.text();
+    let payload = null;
+    try {
+      payload = text ? JSON.parse(text) : null;
+    } catch {
+      payload = { text: text.slice(0, 160) };
+    }
+    return {
+      name,
+      ok: response.ok,
+      status: response.status,
+      message: response.ok ? "정상 연결됨" : `HTTP ${response.status}`,
+      payload,
+    };
+  } catch (error) {
+    return {
+      name,
+      ok: false,
+      status: 0,
+      message: "연결되지 않음",
+      error: error.name === "AbortError" ? "요청 시간 초과" : error.message,
+    };
+  }
+}
+
+async function checkHttpAsset(name, url) {
+  try {
+    const response = await fetchWithTimeout(url);
+    return {
+      name,
+      ok: response.ok,
+      status: response.status,
+      message: response.ok ? "정상 로딩됨" : `HTTP ${response.status}`,
+      contentType: response.headers.get("content-type") || "",
+    };
+  } catch (error) {
+    return {
+      name,
+      ok: false,
+      status: 0,
+      message: "로드 실패",
+      error: error.name === "AbortError" ? "요청 시간 초과" : error.message,
+    };
+  }
+}
+
+async function gitDiagnostics() {
+  const [head, shortHead, originMain, branch, statusLines, aheadBehind] = await Promise.all([
+    runCommand("git", ["rev-parse", "HEAD"]),
+    runCommand("git", ["rev-parse", "--short", "HEAD"]),
+    runCommand("git", ["rev-parse", "origin/main"]),
+    runCommand("git", ["branch", "--show-current"]),
+    runCommand("git", ["status", "--short"]),
+    runCommand("git", ["rev-list", "--left-right", "--count", "HEAD...origin/main"]),
+  ]);
+  const counts = aheadBehind.stdout.split(/\s+/).map((item) => Number(item));
+  const ahead = Number.isFinite(counts[0]) ? counts[0] : null;
+  const behind = Number.isFinite(counts[1]) ? counts[1] : null;
+  return {
+    ok: head.ok,
+    branch: branch.stdout || "unknown",
+    head: head.stdout || null,
+    shortHead: shortHead.stdout || null,
+    originMain: originMain.stdout || null,
+    clean: statusLines.stdout.length === 0,
+    changedFiles: statusLines.stdout ? statusLines.stdout.split("\n").filter(Boolean) : [],
+    syncedWithOrigin: Boolean(head.stdout && originMain.stdout && head.stdout === originMain.stdout),
+    ahead,
+    behind,
+  };
+}
+
+function buildIssues({ studio, opencode, opencodeChunk, git, workspaceStatus, studioWorkspace }) {
+  const issues = [];
+  if (!workspaceStatus.workspaceExists) {
+    issues.push({
+      level: "warning",
+      title: "작업공간이 아직 없습니다",
+      detail: "Manager에서 1번 작업공간 준비를 먼저 누르세요.",
+    });
+  }
+  if (!studio.ok) {
+    issues.push({
+      level: "error",
+      title: "DOT Studio가 연결되지 않습니다",
+      detail: "DOT Studio 서버를 실행한 뒤 이 화면을 다시 진단하세요.",
+    });
+  }
+  if (!opencode.ok) {
+    issues.push({
+      level: "error",
+      title: "OpenCode가 연결되지 않습니다",
+      detail: "OpenCode를 다시 시작하고 /session URL 대신 기본 URL을 여세요.",
+    });
+  }
+  if (opencode.ok && !opencodeChunk.ok) {
+    issues.push({
+      level: "warning",
+      title: "OpenCode 화면 파일 일부를 불러오지 못합니다",
+      detail: "브라우저가 오래된 session URL을 보고 있을 수 있습니다. 기본 URL에서 강력 새로고침하세요.",
+    });
+  }
+  if (!git.clean) {
+    issues.push({
+      level: "warning",
+      title: "아직 커밋하지 않은 변경이 있습니다",
+      detail: `${git.changedFiles.length}개 파일이 변경되었습니다. 개발 완료 후 버전 업데이트, 커밋, push가 필요합니다.`,
+    });
+  }
+  if (git.ok && !git.syncedWithOrigin) {
+    issues.push({
+      level: "warning",
+      title: "GitHub main과 로컬 main이 다릅니다",
+      detail: "개발 완료 후 git push가 필요합니다.",
+    });
+  }
+  if (studio.ok && studioWorkspace && studioWorkspace.performerCount === 0 && studioWorkspace.actCount === 0) {
+    issues.push({
+      level: "warning",
+      title: "DOT Studio 캔버스가 비어 있습니다",
+      detail: "Manager에서 3번 Studio 캔버스에 배치를 누르세요.",
+    });
+  }
+  return issues;
+}
+
+async function diagnostics() {
+  const workspaceStatus = await status();
+  const [version, git, studio, opencode, opencodeChunk] = await Promise.all([
+    readPackageVersion(),
+    gitDiagnostics(),
+    checkHttpJson("DOT Studio", `${studioUrl}/api/health`),
+    checkHttpAsset("OpenCode", opencodeUrl),
+    checkHttpAsset("OpenCode JS", `${opencodeUrl}/assets/status-popover-body-B_17Zv7j.js`),
+  ]);
+
+  let studioWorkspace = null;
+  let opencodeBridge = null;
+  let registry = null;
+  if (studio.ok) {
+    const workspaces = await checkHttpJson("DOT Studio workspaces", `${studioUrl}/api/workspaces?includeHidden=1`);
+    const workspaceId = workspaces.payload?.[0]?.id;
+    if (workspaceId) {
+      const workspace = await checkHttpJson("DOT Studio workspace", `${studioUrl}/api/workspaces/${workspaceId}`);
+      studioWorkspace = {
+        id: workspaceId,
+        ok: workspace.ok,
+        performerCount: workspace.payload?.performers?.length || 0,
+        actCount: workspace.payload?.acts?.length || 0,
+      };
+    }
+    opencodeBridge = await checkHttpJson("DOT Studio OpenCode bridge", `${studioUrl}/api/opencode/health`);
+    registry = await checkHttpJson("DOT Registry search", `${studioUrl}/api/dot/search?q=knolet&kind=dance&limit=1`);
+  }
+
+  const issues = buildIssues({
+    studio,
+    opencode,
+    opencodeChunk,
+    git,
+    workspaceStatus,
+    studioWorkspace,
+  });
+
+  return {
+    version,
+    generatedAt: new Date().toISOString(),
+    urls: {
+      manager: `http://127.0.0.1:${port}`,
+      studio: studioUrl,
+      opencode: opencodeUrl,
+    },
+    git,
+    services: {
+      manager: { ok: true, message: "정상 실행 중" },
+      studio,
+      opencode,
+      opencodeChunk,
+      opencodeBridge,
+      registry,
+    },
+    workspace: {
+      exists: workspaceStatus.workspaceExists,
+      assetCount: workspaceStatus.assetCount,
+      officialAssets: workspaceStatus.officialAssets,
+      studioWorkspace,
+    },
+    ready:
+      workspaceStatus.workspaceExists &&
+      studio.ok &&
+      opencode.ok &&
+      (!studioWorkspace || studioWorkspace.performerCount > 0 || studioWorkspace.actCount > 0) &&
+      git.clean &&
+      git.syncedWithOrigin,
+    issues,
+  };
 }
 
 async function seedStudioCanvas() {
@@ -583,6 +822,11 @@ async function route(request, response) {
 
   if (url.pathname === "/api/status" && request.method === "GET") {
     send(response, 200, await status());
+    return;
+  }
+
+  if (url.pathname === "/api/diagnostics" && request.method === "GET") {
+    send(response, 200, await diagnostics());
     return;
   }
 

@@ -1,6 +1,6 @@
 # dance-of-tal Local Manager
 
-Version: `0.1.1`
+Version: `0.1.2`
 
 This repository contains a local-first manager for `dance-of-tal` style assets.
 It is built for the project owner, not first-time visitors. The local UI creates
@@ -78,6 +78,7 @@ dot-studio doctor . --verbose
 - search the DOT registry through the running DOT Studio API
 - install working registry assets into the current stage workspace
 - add Dance packages from GitHub sources when the source repository is reachable
+- diagnose Manager, DOT Studio, OpenCode, registry, GitHub, and version state
 - list generated assets
 - preview generated JSON and `SKILL.md` files
 - inspect official `dot install` assets under `.dance-of-tal/assets/`
@@ -109,6 +110,13 @@ server is stopped or restarted. Restart OpenCode, then open the base URL again:
 
 For this repository, every meaningful development update should be reflected by
 a package version bump plus a Git commit pushed to `martinyblue/danceoftal`.
+
+## Version Notes
+
+- `0.1.2`: added the Manager diagnostics panel for service health, OpenCode stale
+  session guidance, workspace readiness, package version, and GitHub sync state.
+- `0.1.1`: documented the OpenCode restart flow and added an `npm run opencode`
+  script.
 
 ## Registry Notes
 

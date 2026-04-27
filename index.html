@@ -22,6 +22,8 @@
       <div class="status-strip" aria-live="polite">
         <span id="workspaceState">checking</span>
         <span id="assetCount">0 assets</span>
+        <span id="versionState">v0.1.x</span>
+        <span id="githubState">GitHub 확인 중</span>
       </div>
     </header>
 
@@ -88,6 +90,57 @@
       </aside>
 
       <section class="workspace" aria-label="Asset authoring">
+        <section class="panel diagnostics-panel">
+          <div class="panel-heading">
+            <div>
+              <p class="label">운영 상태</p>
+              <h2>지금 바로 써도 되는지 확인</h2>
+            </div>
+            <button id="runDiagnostics" class="secondary" type="button">상태 다시 확인</button>
+          </div>
+          <div class="diagnostics-grid" id="diagnosticsGrid">
+            <article class="status-card" data-state="unknown">
+              <span>Manager</span>
+              <strong>확인 중</strong>
+              <p>로컬 관리 화면 상태를 확인합니다.</p>
+            </article>
+            <article class="status-card" data-state="unknown">
+              <span>DOT Studio</span>
+              <strong>확인 중</strong>
+              <p>시각 canvas 서버 상태를 확인합니다.</p>
+            </article>
+            <article class="status-card" data-state="unknown">
+              <span>OpenCode</span>
+              <strong>확인 중</strong>
+              <p>실행 세션 서버 상태를 확인합니다.</p>
+            </article>
+            <article class="status-card" data-state="unknown">
+              <span>GitHub</span>
+              <strong>확인 중</strong>
+              <p>버전과 push 상태를 확인합니다.</p>
+            </article>
+          </div>
+          <div class="diagnostics-body">
+            <div>
+              <h3>확인할 일</h3>
+              <ul id="issueList" class="issue-list">
+                <li>상태 확인을 실행하고 있습니다.</li>
+              </ul>
+            </div>
+            <div>
+              <h3>빠른 링크</h3>
+              <div class="quick-links">
+                <a href="http://127.0.0.1:8080" target="_blank" rel="noreferrer">Manager</a>
+                <a href="http://127.0.0.1:43110" target="_blank" rel="noreferrer">DOT Studio</a>
+                <a href="http://127.0.0.1:43120" target="_blank" rel="noreferrer">OpenCode 기본 URL</a>
+              </div>
+              <p id="diagnosticSummary" class="diagnostic-summary">
+                전체 상태를 확인하고 있습니다.
+              </p>
+            </div>
+          </div>
+        </section>
+
         <section class="panel overview-panel">
           <div class="panel-heading">
             <div>

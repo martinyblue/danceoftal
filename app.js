@@ -84,6 +84,12 @@ Use this Dance when a Knolet workspace needs to turn source material into a stru
 const elements = {
   workspaceState: document.querySelector("#workspaceState"),
   assetCount: document.querySelector("#assetCount"),
+  versionState: document.querySelector("#versionState"),
+  githubState: document.querySelector("#githubState"),
+  runDiagnostics: document.querySelector("#runDiagnostics"),
+  diagnosticsGrid: document.querySelector("#diagnosticsGrid"),
+  issueList: document.querySelector("#issueList"),
+  diagnosticSummary: document.querySelector("#diagnosticSummary"),
   initWorkspace: document.querySelector("#initWorkspace"),
   seedWorkspace: document.querySelector("#seedWorkspace"),
   refreshWorkspace: document.querySelector("#refreshWorkspace"),
@@ -171,6 +177,76 @@ function renderStatus(status) {
   }
 }
 
+function serviceCard({ title, ok, state = ok ? "ok" : "error", detail }) {
+  return `
+    <article class="status-card" data-state="${state}">
+      <span>${title}</span>
+      <strong>${ok ? "정상" : "확인 필요"}</strong>
+      <p>${detail}</p>
+    </article>
+  `;
+}
+
+function renderDiagnostics(data) {
+  elements.versionState.textContent = `v${data.version}`;
+  elements.githubState.textContent = data.git.syncedWithOrigin
+    ? `GitHub 반영됨 ${data.git.shortHead || ""}`
+    : "GitHub 확인 필요";
+
+  const studioWorkspace = data.workspace.studioWorkspace;
+  const canvasText = studioWorkspace
+    ? `canvas: Performer ${studioWorkspace.performerCount}개, Act ${studioWorkspace.actCount}개`
+    : "canvas 정보 없음";
+  const opencodeDetail = data.services.opencode.ok
+    ? "기본 URL과 화면 파일이 열립니다."
+    : "서버가 꺼졌거나 오래된 session URL을 보고 있습니다.";
+  const gitDetail = data.git.clean && data.git.syncedWithOrigin
+    ? `${data.git.branch} / ${data.git.shortHead} / GitHub 반영 완료`
+    : `${data.git.changedFiles.length}개 변경, push 상태 확인 필요`;
+
+  elements.diagnosticsGrid.innerHTML = [
+    serviceCard({
+      title: "Manager",
+      ok: data.services.manager.ok,
+      detail: `부품 ${data.workspace.assetCount}개 / 공식형 ${data.workspace.officialAssets}개`,
+    }),
+    serviceCard({
+      title: "DOT Studio",
+      ok: data.services.studio.ok,
+      detail: data.services.studio.ok ? canvasText : data.services.studio.error || data.services.studio.message,
+    }),
+    serviceCard({
+      title: "OpenCode",
+      ok: data.services.opencode.ok && data.services.opencodeChunk.ok,
+      detail: opencodeDetail,
+    }),
+    serviceCard({
+      title: "GitHub",
+      ok: data.git.clean && data.git.syncedWithOrigin,
+      state: data.git.clean && data.git.syncedWithOrigin ? "ok" : "warning",
+      detail: gitDetail,
+    }),
+  ].join("");
+
+  elements.issueList.innerHTML = "";
+  if (!data.issues.length) {
+    const item = document.createElement("li");
+    item.textContent = "지금은 바로 사용 가능한 상태입니다.";
+    elements.issueList.append(item);
+  } else {
+    for (const issue of data.issues) {
+      const item = document.createElement("li");
+      item.dataset.level = issue.level;
+      item.innerHTML = `<strong>${issue.title}</strong><span>${issue.detail}</span>`;
+      elements.issueList.append(item);
+    }
+  }
+
+  elements.diagnosticSummary.textContent = data.ready
+    ? "전체 상태가 정상입니다. DOT Studio에서 canvas를 보고 OpenCode 실행 테스트를 진행해도 됩니다."
+    : "확인할 일이 있습니다. 위 목록의 항목부터 처리하면 됩니다.";
+}
+
 function renderCanvas(assets) {
   const assetSet = new Set(assets.map((asset) => asset.urn));
   const checks = {
@@ -256,6 +332,12 @@ async function refresh() {
   renderAssets(status.assets);
   renderCanvas(status.assets);
   logAction(`화면을 새로 불러왔습니다. 부품 ${status.assetCount}개, 공식형 ${status.officialAssets || 0}개.`);
+}
+
+async function runDiagnostics() {
+  const data = await request("/api/diagnostics");
+  renderDiagnostics(data);
+  logAction(`상태 진단 완료: v${data.version}, 이슈 ${data.issues.length}개.`);
 }
 
 async function previewAsset(filePath) {
@@ -400,6 +482,9 @@ elements.seedWorkspace.addEventListener("click", () =>
 elements.refreshWorkspace.addEventListener("click", () =>
   runAction(elements.refreshWorkspace, refresh),
 );
+elements.runDiagnostics.addEventListener("click", () =>
+  runAction(elements.runDiagnostics, runDiagnostics),
+);
 elements.seedStudio.addEventListener("click", () =>
   runAction(elements.seedStudio, seedStudioCanvas),
 );
@@ -420,4 +505,7 @@ refresh().catch((error) => {
 });
 checkStudioStatus().catch(() => {
   elements.studioState.textContent = "DOT Studio 연결 대기 중";
+});
+runDiagnostics().catch((error) => {
+  elements.diagnosticSummary.textContent = error.message;
 });
