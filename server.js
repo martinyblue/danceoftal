@@ -157,9 +157,16 @@ async function walk(dir, files = []) {
 function urnFromPath(filePath) {
   const relative = path.relative(workspaceRoot, filePath);
   const parts = relative.split(path.sep);
-  const kind = parts[0];
+  const hasAssetsPrefix = parts[0] === "assets";
+  const kind = hasAssetsPrefix ? parts[1] : parts[0];
   if (!assetKinds.has(kind)) {
     return null;
+  }
+  if (hasAssetsPrefix) {
+    if (kind === "dance" && parts.at(-1) === "SKILL.md") {
+      return `${parts[1]}/${parts[2]}/${parts[3]}/${parts[4]}`;
+    }
+    return `${parts[1]}/${parts[2]}/${parts[3]}/${path.basename(parts[4], ".json")}`;
   }
   if (kind === "dance") {
     return `${parts[0]}/${parts[1]}/${parts[2]}/${parts[3]}`;
@@ -188,6 +195,7 @@ async function status() {
     workspace: path.relative(root, workspaceRoot),
     workspaceExists,
     assetCount: assets.length,
+    officialAssets: assets.filter((asset) => asset.path.startsWith(".dance-of-tal/assets/")).length,
     assets,
   };
 }

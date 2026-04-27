@@ -143,6 +143,9 @@ function renderStatus(status) {
     ? ".dance-of-tal ready"
     : ".dance-of-tal missing";
   elements.assetCount.textContent = `${status.assetCount} assets`;
+  if (status.officialAssets) {
+    elements.assetCount.textContent = `${status.assetCount} assets (${status.officialAssets} official)`;
+  }
 }
 
 function renderAssets(assets) {
