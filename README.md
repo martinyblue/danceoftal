@@ -1,6 +1,6 @@
 # dance-of-tal Local Manager
 
-Version: `0.2.1`
+Version: `0.2.2`
 
 This repository contains a local-first manager for `dance-of-tal` style assets.
 It is built for the project owner, not first-time visitors. The local UI creates
@@ -34,8 +34,8 @@ Useful local URLs:
 - DOT Studio: <http://127.0.0.1:43110>
 - OpenCode: <http://127.0.0.1:43120>
 
-If DOT Studio is reinstalled under `.tools/`, reapply the local canvas resize
-patch before starting Studio:
+If DOT Studio is reinstalled under `.tools/`, reapply the local canvas patch
+before starting Studio:
 
 ```bash
 PATH="$PWD/.tools/bin:/tmp/node-v22.11.0-darwin-arm64/bin:$PATH" npm run studio:patch-resize
@@ -114,7 +114,7 @@ dot-studio doctor . --verbose
 - guide integrated recovery flows for stale OpenCode sessions, empty DOT Studio
   canvas, Registry install failures, and pending GitHub push work
 - patch the repo-local DOT Studio build so selected canvas boxes show resize
-  handles immediately and expose a larger corner grip
+  handles immediately, expose a larger corner grip, and allow wider zoom-out
 - provide OpenCode recovery actions for opening the base URL, rechecking status,
   and understanding stale `/session` URLs
 - translate common registry and GitHub install failures into non-technical Korean
@@ -173,6 +173,8 @@ a package version bump plus a Git commit pushed to `martinyblue/danceoftal`.
 
 ## Version Notes
 
+- `0.2.2`: widened the local DOT Studio canvas zoom-out range so larger
+  workflows can fit in one view.
 - `0.2.1`: added a repeatable local DOT Studio patch that makes selected canvas
   boxes visibly resizable with larger resize handles.
 - `0.2.0`: promoted Manager into the integrated localhost launcher with

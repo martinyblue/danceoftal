@@ -46,6 +46,12 @@ const frameCss = findAsset((_filePath, content) =>
   content.includes(".canvas-drag-handle--active"),
 );
 
+const canvasJs = findAsset((_filePath, content) =>
+  content.includes("fitViewOptions:{maxZoom:1,padding:.2}") &&
+  content.includes("zoomOnScroll:!ge") &&
+  (content.includes("minZoom:.12") || content.includes("fitView:!0,fitViewOptions")),
+);
+
 const jsChanged = patchFile(frameJs, [
   {
     from: 'isVisible:m,minWidth:i,minHeight:l,handleStyle:{width:8,height:8,background:"#3b82f6",border:"1.5px solid #2563eb",borderRadius:2}',
@@ -60,14 +66,23 @@ const cssChanged = patchFile(frameCss, [
   },
 ]);
 
+const zoomChanged = patchFile(canvasJs, [
+  {
+    from: "fitView:!0,fitViewOptions:{maxZoom:1,padding:.2},panOnDrag:!ge",
+    to: "fitView:!0,fitViewOptions:{maxZoom:1,padding:.2},minZoom:.12,panOnDrag:!ge",
+  },
+]);
+
 console.log(
   JSON.stringify(
     {
       ok: true,
       frameJs: path.relative(root, frameJs),
       frameCss: path.relative(root, frameCss),
+      canvasJs: path.relative(root, canvasJs),
       jsChanged,
       cssChanged,
+      zoomChanged,
     },
     null,
     2,
