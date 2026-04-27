@@ -300,7 +300,10 @@
                 <p class="label">산출물 캡처</p>
                 <h2 id="runOutputTitle">실행 기록을 선택하세요</h2>
               </div>
-              <button id="saveRunOutputs" class="secondary" type="button">산출물 저장</button>
+              <div class="form-actions">
+                <button id="saveRunOutputs" class="secondary" type="button">산출물 저장</button>
+                <button id="reviewRunOutputs" class="secondary" type="button">품질 검토</button>
+              </div>
             </div>
             <div class="run-output-grid">
               <label>
@@ -323,6 +326,10 @@
                 Next Action Checklist
                 <textarea id="outputChecklist" rows="5"></textarea>
               </label>
+            </div>
+            <div id="runReview" class="run-review">
+              <strong>검토 대기 중</strong>
+              <p>산출물을 저장한 뒤 품질 검토를 누르세요.</p>
             </div>
           </div>
         </section>

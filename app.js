@@ -128,6 +128,8 @@ const elements = {
   runList: document.querySelector("#runList"),
   runOutputTitle: document.querySelector("#runOutputTitle"),
   saveRunOutputs: document.querySelector("#saveRunOutputs"),
+  reviewRunOutputs: document.querySelector("#reviewRunOutputs"),
+  runReview: document.querySelector("#runReview"),
   outputKnowledge: document.querySelector("#outputKnowledge"),
   outputSpec: document.querySelector("#outputSpec"),
   outputRuntime: document.querySelector("#outputRuntime"),
@@ -550,6 +552,34 @@ function fillRunOutputs(run) {
   elements.outputRuntime.value = run.outputs?.runtimeAppPlan || "";
   elements.outputVersioning.value = run.outputs?.versionForkShare || "";
   elements.outputChecklist.value = run.outputs?.nextChecklist || "";
+  renderRunReview(run.review);
+}
+
+function renderRunReview(review) {
+  if (!review?.checklist?.length) {
+    elements.runReview.dataset.state = "idle";
+    elements.runReview.innerHTML = `
+      <strong>검토 대기 중</strong>
+      <p>산출물을 저장한 뒤 품질 검토를 누르세요.</p>
+    `;
+    return;
+  }
+  elements.runReview.dataset.state = review.passed ? "success" : "warning";
+  const items = review.checklist
+    .map(
+      (check) => `
+        <li data-ok="${check.ok ? "true" : "false"}">
+          <strong>${check.label}</strong>
+          <span>${check.detail}</span>
+        </li>
+      `,
+    )
+    .join("");
+  elements.runReview.innerHTML = `
+    <strong>품질 점수 ${review.score}점</strong>
+    <p>${review.summary}</p>
+    <ul class="install-checks">${items}</ul>
+  `;
 }
 
 function renderRunList(runs) {
@@ -616,6 +646,19 @@ async function saveRunOutputs() {
   fillRunOutputs(run);
   await loadRuns();
   logAction(`Workflow 산출물 저장: ${run.title}`);
+}
+
+async function reviewRunOutputs() {
+  if (!state.currentRun?.id) {
+    throw new Error("먼저 workflow 실행 기록을 선택하세요.");
+  }
+  const run = await request(`/api/knolet/runs/${encodeURIComponent(state.currentRun.id)}/review`, {
+    method: "POST",
+    body: "{}",
+  });
+  fillRunOutputs(run);
+  await loadRuns();
+  logAction(`Workflow 산출물 품질 검토: ${run.review.score}점`);
 }
 
 async function previewAsset(filePath) {
@@ -825,6 +868,9 @@ elements.refreshRuns.addEventListener("click", () => runAction(elements.refreshR
 elements.runForm.addEventListener("submit", createRun);
 elements.saveRunOutputs.addEventListener("click", () =>
   runAction(elements.saveRunOutputs, saveRunOutputs),
+);
+elements.reviewRunOutputs.addEventListener("click", () =>
+  runAction(elements.reviewRunOutputs, reviewRunOutputs),
 );
 elements.searchRegistry.addEventListener("click", () =>
   runAction(elements.searchRegistry, searchRegistry),

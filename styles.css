@@ -437,6 +437,28 @@ textarea {
   padding: 16px;
 }
 
+.run-review {
+  display: grid;
+  gap: 8px;
+  margin: 0 16px 16px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+
+.run-review[data-state="success"] {
+  border-color: rgba(36, 90, 70, 0.45);
+}
+
+.run-review[data-state="warning"] {
+  border-color: rgba(183, 120, 22, 0.55);
+}
+
+.run-review p {
+  color: var(--muted);
+  line-height: 1.55;
+}
+
 .plain-guide {
   display: grid;
   gap: 10px;

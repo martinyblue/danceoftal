@@ -1054,6 +1054,69 @@ async function updateWorkflowRun(id, payload) {
   return readWorkflowRun(id);
 }
 
+function reviewWorkflowRunShape(run) {
+  const outputs = defaultRunOutputs(run.outputs || {});
+  const checks = [
+    {
+      key: "knowledgeStructure",
+      label: "Knowledge Structure",
+      ok: outputs.knowledgeStructure.trim().length >= 80,
+      detail: "도메인 개념, 역할, 결정, 데이터 객체가 충분히 적혔는지 확인합니다.",
+    },
+    {
+      key: "knoletSpec",
+      label: "KnoletSpec",
+      ok: outputs.knoletSpec.trim().length >= 120,
+      detail: "화면, 상태, 데이터, 권한, workflow 규칙이 구현 가능한 수준인지 확인합니다.",
+    },
+    {
+      key: "runtimeAppPlan",
+      label: "Runtime App Plan",
+      ok: outputs.runtimeAppPlan.trim().length >= 100,
+      detail: "로컬 실행 화면, API, 저장 구조, 검증 방법이 있는지 확인합니다.",
+    },
+    {
+      key: "versionForkShare",
+      label: "Version / Fork / Share",
+      ok: outputs.versionForkShare.trim().length >= 60,
+      detail: "버전 기록, 포크 경계, 공유 가능/불가 산출물이 분리되어야 합니다.",
+    },
+    {
+      key: "nextChecklist",
+      label: "Next Action Checklist",
+      ok: outputs.nextChecklist.trim().length >= 40,
+      detail: "다음 개발자가 바로 움직일 수 있는 체크리스트가 필요합니다.",
+    },
+  ];
+  const passedCount = checks.filter((check) => check.ok).length;
+  const score = Math.round((passedCount / checks.length) * 100);
+  return {
+    score,
+    passed: score === 100,
+    checklist: checks,
+    summary:
+      score === 100
+        ? "모든 산출물이 다음 개발 단계로 넘길 만큼 채워졌습니다."
+        : "아직 보강할 산출물이 있습니다. 실패 항목부터 OpenCode 결과를 보완하세요.",
+    reviewedAt: new Date().toISOString(),
+  };
+}
+
+async function reviewWorkflowRun(id) {
+  const current = await readWorkflowRun(id);
+  const review = reviewWorkflowRunShape(current);
+  const nextStatus = review.passed ? "reviewed" : "needs-review";
+  const updated = {
+    ...current,
+    review,
+    status: nextStatus,
+    updatedAt: review.reviewedAt,
+  };
+  delete updated.path;
+  await fs.writeFile(workflowRunPath(id), JSON.stringify(updated, null, 2));
+  return readWorkflowRun(id);
+}
+
 async function knoletWorkflowBlueprint() {
   const workspaceStatus = await status();
   const kindSummary = assetKindSummary(workspaceStatus.assets);
@@ -1404,6 +1467,12 @@ async function route(request, response) {
   if (runMatch && request.method === "PUT") {
     const payload = await parseBody(request);
     send(response, 200, await updateWorkflowRun(runMatch[1], payload));
+    return;
+  }
+
+  const runReviewMatch = url.pathname.match(/^\/api\/knolet\/runs\/([^/]+)\/review$/);
+  if (runReviewMatch && request.method === "POST") {
+    send(response, 200, await reviewWorkflowRun(runReviewMatch[1]));
     return;
   }
 
