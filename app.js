@@ -121,7 +121,9 @@ const elements = {
   searchRegistry: document.querySelector("#searchRegistry"),
   registryResults: document.querySelector("#registryResults"),
   installUrn: document.querySelector("#installUrn"),
+  checkInstall: document.querySelector("#checkInstall"),
   installAsset: document.querySelector("#installAsset"),
+  installResult: document.querySelector("#installResult"),
   githubSource: document.querySelector("#githubSource"),
   addGithubDance: document.querySelector("#addGithubDance"),
 };
@@ -137,7 +139,9 @@ async function request(path, options = {}) {
 
   const payload = await response.json();
   if (!response.ok) {
-    throw new Error(payload.error || "Request failed");
+    const error = new Error(payload.error || "Request failed");
+    error.payload = payload;
+    throw error;
   }
   return payload;
 }
@@ -385,6 +389,62 @@ function renderRegistryResults(results) {
   }
 }
 
+function installActionButton(action, result) {
+  if (action.kind === "retry") {
+    return `<button class="secondary" type="button" data-install-action="retry">${action.label}</button>`;
+  }
+  if (action.kind === "search") {
+    return `<button class="secondary" type="button" data-install-action="search">${action.label}</button>`;
+  }
+  if (action.kind === "fallback") {
+    return `<button class="secondary" type="button" data-install-action="fallback">${action.label}</button>`;
+  }
+  if (action.kind === "github" && result.githubUrl) {
+    return `<a class="link-button" href="${result.githubUrl}" target="_blank" rel="noreferrer">${action.label}</a>`;
+  }
+  return "";
+}
+
+function renderInstallResult(result) {
+  const state =
+    result.status === "installed" || result.status === "already-installed"
+      ? "success"
+      : result.ok
+        ? "warning"
+        : "error";
+  elements.installResult.dataset.state = state;
+
+  const checks = (result.checks || [])
+    .map(
+      (check) => `
+        <li data-ok="${check.ok ? "true" : "false"}">
+          <strong>${check.label}</strong>
+          <span>${check.detail}</span>
+        </li>
+      `,
+    )
+    .join("");
+  const actions = (result.actions || [])
+    .map((action) => installActionButton(action, result))
+    .filter(Boolean)
+    .join("");
+  const installedPath = result.installedAsset?.path
+    ? `<p>설치 위치: <code>${result.installedAsset.path}</code></p>`
+    : "";
+
+  elements.installResult.innerHTML = `
+    <strong>${result.title || "설치 상태"}</strong>
+    <p>${result.message || "결과를 확인했습니다."}</p>
+    ${installedPath}
+    ${checks ? `<ul class="install-checks">${checks}</ul>` : ""}
+    ${actions ? `<div class="install-actions">${actions}</div>` : ""}
+  `;
+
+  for (const button of elements.installResult.querySelectorAll("[data-install-action]")) {
+    button.addEventListener("click", () => handleInstallAction(button.dataset.installAction));
+  }
+}
+
 function renderAssets(assets) {
   state.assets = assets;
   elements.assetList.innerHTML = "";
@@ -489,17 +549,60 @@ async function searchRegistry() {
   logAction(`Registry 검색 완료: ${query}`);
 }
 
+async function checkInstallPreflight() {
+  const urn = elements.installUrn.value.trim();
+  if (!urn) {
+    throw new Error("설치할 URN을 입력하거나 검색 결과를 선택하세요.");
+  }
+  const result = await request("/api/dot/preflight", {
+    method: "POST",
+    body: JSON.stringify({ urn, expectedKind: elements.registryKind.value }),
+  });
+  renderInstallResult(result);
+  logAction(`설치 전 확인 완료: ${urn}`);
+}
+
 async function installAsset() {
   const urn = elements.installUrn.value.trim();
   if (!urn) {
     throw new Error("설치할 URN을 입력하거나 검색 결과를 선택하세요.");
   }
-  await request("/api/dot/install", {
+  const result = await request("/api/dot/install", {
     method: "POST",
-    body: JSON.stringify({ urn, scope: "stage" }),
+    body: JSON.stringify({ urn, scope: "stage", expectedKind: elements.registryKind.value }),
   });
+  renderInstallResult(result);
   await refresh();
-  logAction(`Registry asset 설치 요청 완료: ${urn}`);
+  logAction(`${result.title || "Registry asset 설치 결과"}: ${urn}`);
+}
+
+async function handleInstallAction(action) {
+  if (action === "retry") {
+    await runAction(elements.installAsset, installAsset);
+    return;
+  }
+  if (action === "search") {
+    const descriptor = elements.installUrn.value.trim().match(/^(tal|dance|performer|act)\/@[^/]+\/[^/]+\/([^/]+)$/);
+    if (descriptor) {
+      elements.registryKind.value = descriptor[1];
+      elements.registryQuery.value = descriptor[2];
+    }
+    await runAction(elements.searchRegistry, searchRegistry);
+    return;
+  }
+  if (action === "fallback") {
+    await runAction(elements.seedWorkspace, async () => {
+      const result = await request("/api/seed", { method: "POST", body: "{}" });
+      await refresh();
+      renderInstallResult({
+        ok: true,
+        status: "fallback-installed",
+        title: "로컬 예시로 대체 설치 완료",
+        message: `Knolet 기본 예시 파일 ${result.written.length}개를 준비했습니다.`,
+      });
+      logAction("로컬 예시로 대체 설치했습니다.");
+    });
+  }
 }
 
 async function addGithubDance() {
@@ -580,6 +683,9 @@ elements.seedStudio.addEventListener("click", () =>
 );
 elements.searchRegistry.addEventListener("click", () =>
   runAction(elements.searchRegistry, searchRegistry),
+);
+elements.checkInstall.addEventListener("click", () =>
+  runAction(elements.checkInstall, checkInstallPreflight),
 );
 elements.installAsset.addEventListener("click", () =>
   runAction(elements.installAsset, installAsset),

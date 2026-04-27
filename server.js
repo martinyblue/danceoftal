@@ -8,6 +8,7 @@ const workspaceRoot = path.join(root, ".dance-of-tal");
 const port = Number(process.env.PORT || 8080);
 const studioUrl = process.env.DOT_STUDIO_URL || "http://127.0.0.1:43110";
 const opencodeUrl = process.env.OPENCODE_URL || "http://127.0.0.1:43120";
+const shutdownAfterMs = Number(process.env.SHUTDOWN_AFTER_MS || 0);
 
 const contentTypes = {
   ".html": "text/html; charset=utf-8",
@@ -427,6 +428,84 @@ function translateOperationalError(message) {
   }
 
   return raw;
+}
+
+function registryItems(payload) {
+  if (Array.isArray(payload)) {
+    return payload;
+  }
+  return payload?.items || payload?.results || [];
+}
+
+function githubUrlFromUrn(urn) {
+  const descriptor = assetFromUrn(urn);
+  if (!descriptor) {
+    return null;
+  }
+  return `https://github.com/${descriptor.owner}/${descriptor.stage}`;
+}
+
+function actionSetForInstall(status, githubUrl) {
+  const actions = [];
+  if (status !== "installed" && status !== "already-installed") {
+    actions.push({ kind: "retry", label: "다시 시도" });
+    actions.push({ kind: "search", label: "Registry에서 다시 검색" });
+  }
+  if (githubUrl) {
+    actions.push({ kind: "github", label: "GitHub 저장소 열기" });
+  }
+  if (status !== "installed" && status !== "already-installed") {
+    actions.push({ kind: "fallback", label: "로컬 예시로 대체 설치" });
+  }
+  return actions;
+}
+
+function classifyInstallFailure(message, urn) {
+  const raw = String(message || "Install failed");
+  const lower = raw.toLowerCase();
+  const githubUrl = githubUrlFromUrn(urn);
+  let title = "설치 실패";
+  let translated = translateOperationalError(raw);
+  let category = "unknown";
+
+  if (lower.includes("repository not found")) {
+    category = "repository-not-found";
+    title = "GitHub 저장소를 찾을 수 없습니다";
+  } else if (
+    lower.includes("authentication failed") ||
+    lower.includes("unauthorized") ||
+    lower.includes("permission denied") ||
+    lower.includes("http 401") ||
+    lower.includes("http 403")
+  ) {
+    category = "permission";
+    title = "GitHub 권한이 부족합니다";
+  } else if (
+    lower.includes("timeout") ||
+    lower.includes("timed out") ||
+    lower.includes("abort") ||
+    lower.includes("fetch failed") ||
+    lower.includes("econnreset") ||
+    lower.includes("enotfound")
+  ) {
+    category = "network";
+    title = "네트워크 응답이 늦습니다";
+  } else if (lower.includes("invalid") || lower.includes("parse") || lower.includes("schema")) {
+    category = "invalid-asset";
+    title = "asset 구조를 확인해야 합니다";
+    translated = "파일은 찾았지만 DOT asset 구조로 읽기 어렵습니다. 원본 저장소의 형식을 확인하세요.";
+  }
+
+  return {
+    ok: false,
+    status: "failed",
+    category,
+    title,
+    message: translated,
+    rawError: raw,
+    githubUrl,
+    actions: actionSetForInstall("failed", githubUrl),
+  };
 }
 
 async function checkHttpJson(name, url) {
@@ -868,6 +947,104 @@ async function status() {
   };
 }
 
+async function preflightInstall({ urn, expectedKind }) {
+  const descriptor = assetFromUrn(urn);
+  const workspaceStatus = await status();
+  const installedAsset = workspaceStatus.assets.find((asset) => asset.urn === urn) || null;
+  const checks = [];
+
+  checks.push({
+    key: "urn",
+    label: "URN 형식",
+    ok: Boolean(descriptor),
+    detail: descriptor ? `${descriptor.kind}/@${descriptor.owner}/${descriptor.stage}/${descriptor.name}` : "tal, dance, performer, act 형식의 URN이 아닙니다.",
+  });
+
+  const kindMatches = Boolean(!expectedKind || !descriptor || descriptor.kind === expectedKind);
+  checks.push({
+    key: "kind",
+    label: "kind 일치",
+    ok: kindMatches,
+    detail:
+      !descriptor || kindMatches
+        ? "선택한 종류와 URN 종류가 맞습니다."
+        : `선택한 종류는 ${expectedKind}, URN 종류는 ${descriptor.kind}입니다.`,
+  });
+
+  checks.push({
+    key: "installed",
+    label: "이미 설치됨",
+    ok: !installedAsset,
+    detail: installedAsset ? `이미 ${installedAsset.path}에 있습니다.` : "현재 workspace에는 아직 없습니다.",
+  });
+
+  let registryMatch = null;
+  let registryError = null;
+  if (descriptor) {
+    try {
+      const query = encodeURIComponent(descriptor.name);
+      const kind = encodeURIComponent(descriptor.kind);
+      const payload = await studioRequest(`/api/dot/search?q=${query}&kind=${kind}&limit=12`);
+      registryMatch =
+        registryItems(payload).find((item) => (item.urn || item.id || item.name) === urn) || null;
+    } catch (error) {
+      registryError = translateOperationalError(error.message);
+    }
+  }
+
+  checks.push({
+    key: "registry",
+    label: "registry 검색",
+    ok: Boolean(registryMatch),
+    detail: registryError || (registryMatch ? "registry 검색 결과에서 같은 URN을 찾았습니다." : "registry 검색 결과에서 같은 URN을 찾지 못했습니다."),
+  });
+
+  const invalidChecks = checks.filter((check) => !check.ok && check.key !== "installed");
+  const githubUrl = githubUrlFromUrn(urn);
+  if (installedAsset) {
+    return {
+      ok: true,
+      status: "already-installed",
+      title: "이미 설치된 asset입니다",
+      message: "같은 URN이 현재 workspace에 있습니다. 다시 설치하지 않아도 됩니다.",
+      urn,
+      descriptor,
+      checks,
+      installedAsset,
+      registryMatch,
+      githubUrl,
+      actions: actionSetForInstall("already-installed", githubUrl),
+    };
+  }
+  if (invalidChecks.length) {
+    return {
+      ok: false,
+      status: "blocked",
+      title: "설치 전 확인 필요",
+      message: invalidChecks[0].detail,
+      urn,
+      descriptor,
+      checks,
+      registryMatch,
+      githubUrl,
+      actions: actionSetForInstall("blocked", githubUrl),
+    };
+  }
+
+  return {
+    ok: true,
+    status: "ready",
+    title: "설치 준비 완료",
+    message: "URN 형식, kind, registry 검색, 중복 설치 여부를 확인했습니다.",
+    urn,
+    descriptor,
+    checks,
+    registryMatch,
+    githubUrl,
+    actions: actionSetForInstall("ready", githubUrl),
+  };
+}
+
 async function readSafeFile(relativePath) {
   const fullPath = path.resolve(root, relativePath);
   if (!fullPath.startsWith(workspaceRoot + path.sep)) {
@@ -1032,12 +1209,22 @@ async function route(request, response) {
     return;
   }
 
+  if (url.pathname === "/api/dot/preflight" && request.method === "POST") {
+    const payload = await parseBody(request);
+    send(response, 200, await preflightInstall(payload));
+    return;
+  }
+
   if (url.pathname === "/api/dot/install" && request.method === "POST") {
     const payload = await parseBody(request);
-    send(
-      response,
-      200,
-      await studioRequest("/api/dot/install", {
+    const preflight = await preflightInstall(payload);
+    if (!preflight.ok || preflight.status === "already-installed") {
+      send(response, 200, preflight);
+      return;
+    }
+
+    try {
+      const installPayload = await studioRequest("/api/dot/install", {
         method: "POST",
         body: JSON.stringify({
           urn: payload.urn,
@@ -1045,8 +1232,35 @@ async function route(request, response) {
           force: payload.force === true,
           scope: payload.scope || "stage",
         }),
-      }),
-    );
+      });
+      const nextStatus = await status();
+      const installedAsset = nextStatus.assets.find((asset) => asset.urn === payload.urn) || null;
+      send(response, 200, {
+        ok: Boolean(installedAsset),
+        status: installedAsset ? "installed" : "partial",
+        title: installedAsset ? "설치 완료" : "부분 성공: 파일 확인 필요",
+        message: installedAsset
+          ? "Registry asset이 현재 workspace에 설치됐습니다."
+          : "설치 요청은 끝났지만 Manager 파일 목록에서 같은 URN을 찾지 못했습니다. DOT Studio나 파일 구조를 확인하세요.",
+        urn: payload.urn,
+        descriptor: preflight.descriptor,
+        checks: preflight.checks,
+        installedAsset,
+        installPayload,
+        registryMatch: preflight.registryMatch,
+        githubUrl: preflight.githubUrl,
+        actions: actionSetForInstall(installedAsset ? "installed" : "partial", preflight.githubUrl),
+      });
+    } catch (error) {
+      const failure = classifyInstallFailure(error.message, payload.urn);
+      send(response, 200, {
+        ...failure,
+        urn: payload.urn,
+        descriptor: preflight.descriptor,
+        checks: preflight.checks,
+        registryMatch: preflight.registryMatch,
+      });
+    }
     return;
   }
 
@@ -1107,4 +1321,10 @@ const server = http.createServer((request, response) => {
 
 server.listen(port, "127.0.0.1", () => {
   console.log(`dance-of-tal manager listening on http://127.0.0.1:${port}`);
+  if (Number.isFinite(shutdownAfterMs) && shutdownAfterMs > 0) {
+    setTimeout(() => {
+      console.log(`dance-of-tal manager shutting down after ${shutdownAfterMs}ms`);
+      server.close(() => process.exit(0));
+    }, shutdownAfterMs).unref();
+  }
 });

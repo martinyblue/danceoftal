@@ -1,6 +1,6 @@
 # dance-of-tal Local Manager
 
-Version: `0.1.3`
+Version: `0.1.4`
 
 This repository contains a local-first manager for `dance-of-tal` style assets.
 It is built for the project owner, not first-time visitors. The local UI creates
@@ -77,6 +77,10 @@ dot-studio doctor . --verbose
 - seed the DOT Studio canvas with a visible Performer and Act example
 - search the DOT registry through the running DOT Studio API
 - install working registry assets into the current stage workspace
+- run registry install preflight checks for URN shape, kind match, registry
+  visibility, and duplicate local installs
+- show install result cards with retry, registry search, GitHub source, and
+  local fallback actions
 - add Dance packages from GitHub sources when the source repository is reachable
 - diagnose Manager, DOT Studio, OpenCode, registry, GitHub, and version state
 - explain the current DOT Studio canvas in Korean and show what to click next
@@ -106,6 +110,13 @@ make local verification and repeated setup easier.
 
 ## Troubleshooting
 
+For registry installs, use `설치 전 확인` before `현재 workspace에 설치`.
+The Manager checks whether the URN shape is valid, the selected kind matches,
+the same URN appears in registry search, and the asset is not already installed.
+If install still fails, the result card explains whether the likely cause is a
+missing/private GitHub repository, permissions, network delay, or invalid asset
+structure, then offers the next action buttons.
+
 The Manager now includes an OpenCode recovery panel. Use `OpenCode 기본 URL 열기`
 first, then `OpenCode 상태 재확인`. OpenCode restart remains a manual terminal
 step until the planned `0.2.0` integrated launcher.
@@ -124,6 +135,9 @@ a package version bump plus a Git commit pushed to `martinyblue/danceoftal`.
 
 ## Version Notes
 
+- `0.1.4`: added registry install preflight checks, structured install result
+  cards, retry/search/GitHub/local fallback actions, and richer install failure
+  classification.
 - `0.1.3`: added DOT Studio usage guidance, OpenCode recovery actions, an
   execution readiness checklist, and Korean translations for common registry
   install failures.

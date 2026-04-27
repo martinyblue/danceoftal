@@ -590,6 +590,68 @@ textarea {
   border-radius: 6px;
 }
 
+.install-result {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface);
+}
+
+.install-result[data-state="success"] {
+  border-color: rgba(36, 90, 70, 0.45);
+}
+
+.install-result[data-state="warning"] {
+  border-color: rgba(183, 120, 22, 0.55);
+}
+
+.install-result[data-state="error"] {
+  border-color: rgba(142, 63, 50, 0.5);
+}
+
+.install-result p {
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+.install-checks {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.install-checks li {
+  display: grid;
+  gap: 3px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--muted);
+}
+
+.install-checks li[data-ok="true"] {
+  border-color: rgba(36, 90, 70, 0.35);
+}
+
+.install-checks li[data-ok="false"] {
+  border-color: rgba(142, 63, 50, 0.4);
+}
+
+.install-checks strong {
+  color: var(--ink);
+}
+
+.install-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
 .workflow-canvas {
   position: relative;
   display: grid;
@@ -737,6 +799,10 @@ code {
 
   .tool-row,
   .tool-row:has(label:first-child:last-of-type) {
+    grid-template-columns: 1fr;
+  }
+
+  .install-checks {
     grid-template-columns: 1fr;
   }
 }
