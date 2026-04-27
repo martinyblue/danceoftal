@@ -115,6 +115,9 @@ const elements = {
   previewBody: document.querySelector("#previewBody"),
   actionLog: document.querySelector("#actionLog"),
   workflowCanvas: document.querySelector("#workflowCanvas"),
+  refreshWorkflowPlan: document.querySelector("#refreshWorkflowPlan"),
+  workflowBlueprint: document.querySelector("#workflowBlueprint"),
+  workflowPrompt: document.querySelector("#workflowPrompt"),
   studioState: document.querySelector("#studioState"),
   registryKind: document.querySelector("#registryKind"),
   registryQuery: document.querySelector("#registryQuery"),
@@ -364,6 +367,43 @@ function renderCanvas(assets) {
   }
 }
 
+function renderWorkflowBlueprint(workflow) {
+  const phaseItems = workflow.phases
+    .map(
+      (phase) => `
+        <article class="workflow-phase" data-ready="${phase.ready ? "true" : "false"}">
+          <span>${phase.ready ? "준비됨" : "확인 필요"}</span>
+          <strong>${phase.title}</strong>
+          <p>${phase.operatorAction}</p>
+          <dl>
+            <div>
+              <dt>입력</dt>
+              <dd>${phase.input.join(", ")}</dd>
+            </div>
+            <div>
+              <dt>산출물</dt>
+              <dd>${phase.output.join(", ")}</dd>
+            </div>
+            <div>
+              <dt>검수 기준</dt>
+              <dd>${phase.acceptance}</dd>
+            </div>
+          </dl>
+        </article>
+      `,
+    )
+    .join("");
+
+  elements.workflowBlueprint.innerHTML = `
+    <div class="workflow-blueprint__summary">
+      <strong>${workflow.title}</strong>
+      <p>${workflow.summary}</p>
+    </div>
+    <div class="workflow-phases">${phaseItems}</div>
+  `;
+  elements.workflowPrompt.textContent = workflow.handoffPrompt;
+}
+
 function renderRegistryResults(results) {
   elements.registryResults.innerHTML = "";
   const items = Array.isArray(results) ? results : results.items || results.results || [];
@@ -479,6 +519,12 @@ async function runDiagnostics() {
   const data = await request("/api/diagnostics");
   renderDiagnostics(data);
   logAction(`상태 진단 완료: v${data.version}, 이슈 ${data.issues.length}개.`);
+}
+
+async function loadWorkflowBlueprint() {
+  const workflow = await request("/api/knolet/workflow");
+  renderWorkflowBlueprint(workflow);
+  logAction(`Knolet workflow blueprint 확인 완료: ${workflow.ready ? "준비됨" : "확인 필요"}`);
 }
 
 async function previewAsset(filePath) {
@@ -681,6 +727,9 @@ elements.toggleOpenCodeGuide.addEventListener("click", () => {
 elements.seedStudio.addEventListener("click", () =>
   runAction(elements.seedStudio, seedStudioCanvas),
 );
+elements.refreshWorkflowPlan.addEventListener("click", () =>
+  runAction(elements.refreshWorkflowPlan, loadWorkflowBlueprint),
+);
 elements.searchRegistry.addEventListener("click", () =>
   runAction(elements.searchRegistry, searchRegistry),
 );
@@ -704,4 +753,7 @@ checkStudioStatus().catch(() => {
 });
 runDiagnostics().catch((error) => {
   elements.diagnosticSummary.textContent = error.message;
+});
+loadWorkflowBlueprint().catch((error) => {
+  elements.workflowBlueprint.innerHTML = `<p class="empty">${error.message}</p>`;
 });

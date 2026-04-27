@@ -947,6 +947,104 @@ async function status() {
   };
 }
 
+async function knoletWorkflowBlueprint() {
+  const workspaceStatus = await status();
+  const kindSummary = assetKindSummary(workspaceStatus.assets);
+  const assetSet = new Set(workspaceStatus.assets.map((asset) => asset.urn));
+  const hasKnoletBuilder =
+    assetSet.has("performer/@martinyblue/local/knolet-builder") ||
+    assetSet.has("performer/@martinyblue/knolet/knolet-builder") ||
+    assetSet.has("performer/@martinyblue/danceoftal/knolet-builder");
+  const hasWorkflowAct =
+    assetSet.has("act/@martinyblue/local/document-to-knolet-app") ||
+    assetSet.has("act/@martinyblue/knolet/document-to-knolet-app") ||
+    assetSet.has("act/@martinyblue/danceoftal/document-to-knolet-app");
+
+  const phases = [
+    {
+      key: "source-document",
+      title: "1. Source Document",
+      operatorAction: "문서 원문, 링크, 메모, 기존 업무 규칙을 한 곳에 모읍니다.",
+      input: ["원문 문서", "업무 배경", "사용자/역할 메모"],
+      output: ["sourceDocument", "sourceMetadata"],
+      acceptance: "무엇을 만들지 판단할 근거가 문서 단위로 분리되어 있어야 합니다.",
+      ready: workspaceStatus.workspaceExists,
+    },
+    {
+      key: "knowledge-structure",
+      title: "2. Knowledge Structure",
+      operatorAction: "Source Document Parser Dance로 개념, 역할, 결정, 데이터 객체를 추출합니다.",
+      input: ["sourceDocument"],
+      output: ["domainConcepts", "actors", "decisions", "dataObjects", "workflowCandidates"],
+      acceptance: "원문 해석과 앱 생성 판단이 섞이지 않고 구조화되어야 합니다.",
+      ready: kindSummary.dance,
+    },
+    {
+      key: "knolet-spec",
+      title: "3. KnoletSpec",
+      operatorAction: "Knolet Builder Performer가 화면, 상태, 데이터, 권한, 실행 흐름을 명세합니다.",
+      input: ["knowledgeStructure", "targetUser", "runtimeConstraints"],
+      output: ["knoletSpec", "uiStates", "workflowRules", "toolBoundaries"],
+      acceptance: "개발자가 그대로 구현할 수 있을 만큼 화면과 데이터 경계가 명확해야 합니다.",
+      ready: hasKnoletBuilder,
+    },
+    {
+      key: "runtime-app",
+      title: "4. Runtime App",
+      operatorAction: "KnoletSpec을 실제 앱 화면, API, 저장 구조, 실행 상태로 변환합니다.",
+      input: ["knoletSpec"],
+      output: ["appScreens", "apiRoutes", "storageShape", "runChecks"],
+      acceptance: "로컬에서 실행하고 Manager 진단으로 상태를 확인할 수 있어야 합니다.",
+      ready: hasWorkflowAct,
+    },
+    {
+      key: "version-fork-share",
+      title: "5. Version / Fork / Share",
+      operatorAction: "변경 버전, 포크 가능 지점, 공유 가능한 산출물을 분리해 기록합니다.",
+      input: ["runtimeApp", "reviewNotes"],
+      output: ["versionNote", "forkBoundary", "sharePackage", "nextIteration"],
+      acceptance: "다음 개발 단위가 무엇인지, 공유하면 안 되는 것이 무엇인지 분명해야 합니다.",
+      ready: workspaceStatus.workspaceExists && kindSummary.act,
+    },
+  ];
+
+  const handoffPrompt = [
+    "Knolet Builder로 다음 문서를 앱 명세로 바꿔주세요.",
+    "",
+    "목표:",
+    "- 원문 해석과 앱 생성 판단을 분리합니다.",
+    "- Knowledge Structure, KnoletSpec, Runtime App, Version/Fork/Share를 각각 산출합니다.",
+    "- 각 산출물에는 검수 기준과 다음 행동을 포함합니다.",
+    "",
+    "입력:",
+    "- Source Document: <여기에 문서 원문 또는 요약>",
+    "- Target User: <주 사용자>",
+    "- Runtime Constraints: <로컬/웹/권한/데이터 제약>",
+    "",
+    "출력 형식:",
+    "1. Knowledge Structure",
+    "2. KnoletSpec",
+    "3. Runtime App Plan",
+    "4. Version/Fork/Share Notes",
+    "5. Next Action Checklist",
+  ].join("\n");
+
+  return {
+    title: "Document to Knolet App Workflow",
+    summary: "문서를 실행 가능한 Knolet 앱으로 바꾸기 위한 5단계 산출물 흐름입니다.",
+    ready: phases.every((phase) => phase.ready),
+    phases,
+    handoffPrompt,
+    assets: {
+      workspace: workspaceStatus.workspaceExists,
+      tal: kindSummary.tal,
+      dance: kindSummary.dance,
+      performer: kindSummary.performer,
+      act: kindSummary.act,
+    },
+  };
+}
+
 async function preflightInstall({ urn, expectedKind }) {
   const descriptor = assetFromUrn(urn);
   const workspaceStatus = await status();
@@ -1171,6 +1269,11 @@ async function route(request, response) {
 
   if (url.pathname === "/api/diagnostics" && request.method === "GET") {
     send(response, 200, await diagnostics());
+    return;
+  }
+
+  if (url.pathname === "/api/knolet/workflow" && request.method === "GET") {
+    send(response, 200, await knoletWorkflowBlueprint());
     return;
   }
 

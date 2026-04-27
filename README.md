@@ -1,6 +1,6 @@
 # dance-of-tal Local Manager
 
-Version: `0.1.4`
+Version: `0.1.5`
 
 This repository contains a local-first manager for `dance-of-tal` style assets.
 It is built for the project owner, not first-time visitors. The local UI creates
@@ -86,6 +86,9 @@ dot-studio doctor . --verbose
 - explain the current DOT Studio canvas in Korean and show what to click next
 - show an execution readiness checklist for workspace, assets, Studio, OpenCode,
   and GitHub sync
+- show a richer Knolet workflow blueprint from Source Document to Knowledge
+  Structure, KnoletSpec, Runtime App, and Version/Fork/Share
+- generate an OpenCode handoff prompt for the Document to Knolet App flow
 - provide OpenCode recovery actions for opening the base URL, rechecking status,
   and understanding stale `/session` URLs
 - translate common registry and GitHub install failures into non-technical Korean
@@ -103,6 +106,10 @@ Use the Manager at <http://127.0.0.1:8080> in this order:
 3. `Studio 캔버스에 배치`: saves a visible sample canvas into DOT Studio.
 4. Open DOT Studio at <http://127.0.0.1:43110> and refresh the page if it was
    already open.
+5. Review `Knolet workflow` to see the required inputs, outputs, and acceptance
+   criteria for each app-generation phase.
+6. Use the generated OpenCode handoff prompt as the starting point for a real
+   `Document to Knolet App` run.
 
 The Manager is a custom local operator UI for this repository. The official
 dance-of-tal surfaces are `dot` CLI and DOT Studio; the Manager exists only to
@@ -135,6 +142,8 @@ a package version bump plus a Git commit pushed to `martinyblue/danceoftal`.
 
 ## Version Notes
 
+- `0.1.5`: expanded the Knolet workflow surface with a five-phase blueprint,
+  per-phase inputs/outputs/acceptance criteria, and an OpenCode handoff prompt.
 - `0.1.4`: added registry install preflight checks, structured install result
   cards, retry/search/GitHub/local fallback actions, and richer install failure
   classification.
