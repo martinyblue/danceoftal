@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="Dance of Tal은 탈춤의 움직임과 리듬을 현대적으로 소개하는 웹 프로젝트입니다."
+    />
+    <title>Dance of Tal</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <header class="site-header">
+      <a class="brand" href="#top" aria-label="Dance of Tal home">Dance of Tal</a>
+      <nav class="nav" aria-label="Primary">
+        <a href="#program">Program</a>
+        <a href="#story">Story</a>
+        <a href="#visit">Visit</a>
+      </nav>
+    </header>
+
+    <main id="top">
+      <section class="hero" aria-labelledby="hero-title">
+        <div class="hero__media" aria-hidden="true">
+          <div class="mask-shape mask-shape--left"></div>
+          <div class="mask-shape mask-shape--center"></div>
+          <div class="mask-shape mask-shape--right"></div>
+        </div>
+        <div class="hero__content">
+          <p class="eyebrow">Korean Mask Dance Archive</p>
+          <h1 id="hero-title">Dance of Tal</h1>
+          <p>
+            탈의 표정, 장단의 흐름, 몸짓의 서사를 한곳에서 탐색할 수 있는
+            디지털 무대입니다.
+          </p>
+          <div class="hero__actions">
+            <a class="button button--primary" href="#program">프로그램 보기</a>
+            <a class="button button--ghost" href="#story">프로젝트 소개</a>
+          </div>
+        </div>
+      </section>
+
+      <section id="program" class="section section--warm" aria-labelledby="program-title">
+        <div class="section__inner">
+          <div class="section__heading">
+            <p class="eyebrow">Program</p>
+            <h2 id="program-title">움직임으로 읽는 탈춤</h2>
+          </div>
+          <div class="program-grid">
+            <article class="program-item">
+              <span class="program-item__mark">01</span>
+              <h3>리듬</h3>
+              <p>장단의 반복과 변주를 통해 춤의 속도와 감정 변화를 따라갑니다.</p>
+            </article>
+            <article class="program-item">
+              <span class="program-item__mark">02</span>
+              <h3>표정</h3>
+              <p>탈의 과장된 얼굴이 어떻게 풍자와 웃음, 긴장을 만드는지 살펴봅니다.</p>
+            </article>
+            <article class="program-item">
+              <span class="program-item__mark">03</span>
+              <h3>몸짓</h3>
+              <p>발 디딤과 팔의 선이 만들어내는 장면 전환과 인물성을 기록합니다.</p>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section id="story" class="section" aria-labelledby="story-title">
+        <div class="section__inner story">
+          <div>
+            <p class="eyebrow">Story</p>
+            <h2 id="story-title">전통을 설명이 아닌 경험으로</h2>
+          </div>
+          <p>
+            Dance of Tal은 공연 소개, 교육 자료, 아카이브 콘텐츠로 확장할 수
+            있는 기반 사이트입니다. 현재 버전은 GitHub와 Vercel 배포 흐름을
+            검증하기 위한 첫 운영 가능한 릴리스입니다.
+          </p>
+        </div>
+      </section>
+
+      <section id="visit" class="section section--dark" aria-labelledby="visit-title">
+        <div class="section__inner visit">
+          <div>
+            <p class="eyebrow">Visit</p>
+            <h2 id="visit-title">다음 공연과 자료를 준비 중입니다</h2>
+          </div>
+          <a class="button button--light" href="mailto:martinyblue@users.noreply.github.com">
+            문의하기
+          </a>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <span>© 2026 Dance of Tal</span>
+      <span>Built for GitHub and Vercel deployment.</span>
+    </footer>
+  </body>
+</html>
