@@ -6,6 +6,7 @@ const { execFile } = require("node:child_process");
 const root = process.cwd();
 const workspaceRoot = path.join(root, ".dance-of-tal");
 const workflowRunsRoot = path.join(workspaceRoot, "runs");
+const workflowExportsRoot = path.join(workspaceRoot, "exports");
 const port = Number(process.env.PORT || 8080);
 const studioUrl = process.env.DOT_STUDIO_URL || "http://127.0.0.1:43110";
 const opencodeUrl = process.env.OPENCODE_URL || "http://127.0.0.1:43120";
@@ -104,6 +105,7 @@ async function readPackageVersion() {
 async function ensureWorkspace() {
   await fs.mkdir(workspaceRoot, { recursive: true });
   await fs.mkdir(workflowRunsRoot, { recursive: true });
+  await fs.mkdir(workflowExportsRoot, { recursive: true });
   for (const kind of assetKinds) {
     await fs.mkdir(path.join(workspaceRoot, kind), { recursive: true });
   }
@@ -1117,6 +1119,47 @@ async function reviewWorkflowRun(id) {
   return readWorkflowRun(id);
 }
 
+function markdownSection(title, body) {
+  return [`## ${title}`, "", String(body || "_Not captured yet._").trim() || "_Not captured yet._", ""].join("\n");
+}
+
+async function exportWorkflowRun(id) {
+  await ensureWorkspace();
+  const run = await readWorkflowRun(id);
+  const review = run.review?.checklist?.length ? run.review : reviewWorkflowRunShape(run);
+  const outputs = defaultRunOutputs(run.outputs || {});
+  const markdown = [
+    `# ${run.title}`,
+    "",
+    `- Run ID: \`${run.id}\``,
+    `- Status: \`${run.status}\``,
+    `- Target User: ${run.targetUser || "Not specified"}`,
+    `- Updated: ${run.updatedAt}`,
+    `- Review Score: ${review.score}`,
+    "",
+    markdownSection("Source Document", run.sourceDocument),
+    markdownSection("Runtime Constraints", run.runtimeConstraints),
+    markdownSection("Knowledge Structure", outputs.knowledgeStructure),
+    markdownSection("KnoletSpec", outputs.knoletSpec),
+    markdownSection("Runtime App Plan", outputs.runtimeAppPlan),
+    markdownSection("Version / Fork / Share", outputs.versionForkShare),
+    markdownSection("Next Action Checklist", outputs.nextChecklist),
+    "## Review Checklist",
+    "",
+    ...review.checklist.map((check) => `- [${check.ok ? "x" : " "}] ${check.label}: ${check.detail}`),
+    "",
+  ].join("\n");
+  const filePath = path.join(workflowExportsRoot, `${slug(run.title, run.id)}-${run.id}.md`);
+  await fs.writeFile(filePath, markdown);
+  return {
+    id: run.id,
+    title: run.title,
+    path: path.relative(root, filePath),
+    markdown,
+    review,
+  };
+}
+
 async function knoletWorkflowBlueprint() {
   const workspaceStatus = await status();
   const kindSummary = assetKindSummary(workspaceStatus.assets);
@@ -1473,6 +1516,12 @@ async function route(request, response) {
   const runReviewMatch = url.pathname.match(/^\/api\/knolet\/runs\/([^/]+)\/review$/);
   if (runReviewMatch && request.method === "POST") {
     send(response, 200, await reviewWorkflowRun(runReviewMatch[1]));
+    return;
+  }
+
+  const runExportMatch = url.pathname.match(/^\/api\/knolet\/runs\/([^/]+)\/export$/);
+  if (runExportMatch && request.method === "POST") {
+    send(response, 200, await exportWorkflowRun(runExportMatch[1]));
     return;
   }
 

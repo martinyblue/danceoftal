@@ -129,7 +129,9 @@ const elements = {
   runOutputTitle: document.querySelector("#runOutputTitle"),
   saveRunOutputs: document.querySelector("#saveRunOutputs"),
   reviewRunOutputs: document.querySelector("#reviewRunOutputs"),
+  exportRunPackage: document.querySelector("#exportRunPackage"),
   runReview: document.querySelector("#runReview"),
+  exportPreview: document.querySelector("#exportPreview"),
   outputKnowledge: document.querySelector("#outputKnowledge"),
   outputSpec: document.querySelector("#outputSpec"),
   outputRuntime: document.querySelector("#outputRuntime"),
@@ -661,6 +663,18 @@ async function reviewRunOutputs() {
   logAction(`Workflow 산출물 품질 검토: ${run.review.score}점`);
 }
 
+async function exportRunPackage() {
+  if (!state.currentRun?.id) {
+    throw new Error("먼저 workflow 실행 기록을 선택하세요.");
+  }
+  const result = await request(`/api/knolet/runs/${encodeURIComponent(state.currentRun.id)}/export`, {
+    method: "POST",
+    body: "{}",
+  });
+  elements.exportPreview.textContent = result.markdown;
+  logAction(`공유 패키지 생성: ${result.path}`);
+}
+
 async function previewAsset(filePath) {
   const data = await request(`/api/file?path=${encodeURIComponent(filePath)}`);
   elements.previewTitle.textContent = data.path;
@@ -871,6 +885,9 @@ elements.saveRunOutputs.addEventListener("click", () =>
 );
 elements.reviewRunOutputs.addEventListener("click", () =>
   runAction(elements.reviewRunOutputs, reviewRunOutputs),
+);
+elements.exportRunPackage.addEventListener("click", () =>
+  runAction(elements.exportRunPackage, exportRunPackage),
 );
 elements.searchRegistry.addEventListener("click", () =>
   runAction(elements.searchRegistry, searchRegistry),

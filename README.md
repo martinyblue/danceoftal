@@ -1,6 +1,6 @@
 # dance-of-tal Local Manager
 
-Version: `0.1.7`
+Version: `0.1.8`
 
 This repository contains a local-first manager for `dance-of-tal` style assets.
 It is built for the project owner, not first-time visitors. The local UI creates
@@ -94,6 +94,8 @@ dot-studio doctor . --verbose
   Plan, Version/Fork/Share, and Next Action Checklist fields
 - review saved workflow outputs for minimum completeness before the next
   development step
+- export saved workflow runs as Markdown share packages under
+  `.dance-of-tal/exports/`
 - provide OpenCode recovery actions for opening the base URL, rechecking status,
   and understanding stale `/session` URLs
 - translate common registry and GitHub install failures into non-technical Korean
@@ -117,6 +119,7 @@ Use the Manager at <http://127.0.0.1:8080> in this order:
    `Document to Knolet App` run.
 7. Save the run inputs and captured outputs in `Workflow 산출물 저장`.
 8. Run `품질 검토` to catch missing or underdeveloped workflow outputs.
+9. Use `공유 패키지 만들기` to produce a Markdown handoff package.
 
 The Manager is a custom local operator UI for this repository. The official
 dance-of-tal surfaces are `dot` CLI and DOT Studio; the Manager exists only to
@@ -149,6 +152,8 @@ a package version bump plus a Git commit pushed to `martinyblue/danceoftal`.
 
 ## Version Notes
 
+- `0.1.8`: added Markdown export/share packages for saved workflow runs,
+  including source input, captured outputs, and review checklist.
 - `0.1.7`: added saved workflow output quality review with score, pass/fail
   checks, and status updates for run records.
 - `0.1.6`: added workflow run records and output capture for saved Knolet app

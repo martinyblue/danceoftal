@@ -459,6 +459,13 @@ textarea {
   line-height: 1.55;
 }
 
+.export-preview {
+  min-height: 180px;
+  max-height: 320px;
+  margin-top: 0;
+  border-top: 1px solid var(--line);
+}
+
 .plain-guide {
   display: grid;
   gap: 10px;
