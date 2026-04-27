@@ -1,6 +1,6 @@
 # dance-of-tal Local Manager
 
-Version: `0.2.5`
+Version: `0.2.6`
 
 This repository contains a local-first manager for `dance-of-tal` style assets.
 It is built for the project owner, not first-time visitors. The local UI creates
@@ -249,6 +249,8 @@ a package version bump plus a Git commit pushed to `martinyblue/danceoftal`.
 
 ## Version Notes
 
+- `0.2.6`: made the DOT Studio npm script non-interactive so npm update prompts
+  cannot block local Studio startup.
 - `0.2.5`: changed the OpenCode npm script from the old absolute Desktop path
   to a repo-relative path so the moved local folder stays connected.
 - `0.2.4`: added explicit development/commercial/production mode checks so local
