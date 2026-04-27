@@ -1,6 +1,6 @@
 {
   "kind": "performer",
-  "urn": "performer/@martinyblue/local/knolet-builder",
+  "urn": "performer/@martinyblue/knolet/knolet-builder",
   "tal": "tal/@martinyblue/local/knolet-architect",
   "dances": [
     "dance/@martinyblue/local/source-document-parser"
@@ -15,5 +15,5 @@
     ],
     "mcp": []
   },
-  "updatedAt": "2026-04-27T08:07:59.085Z"
+  "updatedAt": "2026-04-27T08:07:59.090Z"
 }

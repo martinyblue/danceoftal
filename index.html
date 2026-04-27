@@ -13,8 +13,11 @@
   <body>
     <header class="topbar">
       <div>
-        <p class="label">Local Workspace</p>
-        <h1>dance-of-tal manager</h1>
+        <p class="label">내 컴퓨터에서 실행 중</p>
+        <h1>dance-of-tal 관리 화면</h1>
+        <p class="topbar__helper">
+          에이전트 부품을 만들고, 예시 흐름을 확인하고, DOT Studio로 넘기기 전 상태를 점검합니다.
+        </p>
       </div>
       <div class="status-strip" aria-live="polite">
         <span id="workspaceState">checking</span>
@@ -25,104 +28,188 @@
     <main class="shell">
       <aside class="sidebar" aria-label="Workspace controls">
         <section class="panel">
-          <h2>Workspace</h2>
+          <h2>먼저 이 순서대로 누르세요</h2>
           <p class="note">
-            이 화면은 방문자용 홈페이지가 아니라 관리자가 로컬에서 DOT 구조를
-            만들고 확인하기 위한 콘솔입니다. 공식 dance-of-tal의 화면이 아니라
-            이 repo에 맞춰 만든 보조 관리자 UI입니다.
+            이 화면은 공식 dance-of-tal 화면이 아니라, 이 프로젝트를 관리하기 쉽게
+            만든 보조 화면입니다. 아래 버튼을 누르면 내 컴퓨터의 `.dance-of-tal/`
+            폴더에 실제 파일이 만들어집니다.
           </p>
           <div class="button-stack">
-            <button id="initWorkspace" type="button">Initialize .dance-of-tal</button>
-            <button id="seedWorkspace" type="button">Create Knolet sample flow</button>
-            <button id="refreshWorkspace" type="button">Refresh</button>
+            <button id="initWorkspace" type="button">1. 작업공간 준비</button>
+            <button id="seedWorkspace" type="button">2. Knolet 예시 만들기</button>
+            <button id="refreshWorkspace" type="button">3. 화면 다시 불러오기</button>
           </div>
         </section>
 
         <section class="panel">
-          <h2>Button Results</h2>
+          <h2>누르면 생기는 변화</h2>
           <dl class="model-list">
             <div>
-              <dt>Initialize</dt>
-              <dd>workspace 폴더와 기본 metadata를 만들고 상태 pill이 ready로 바뀝니다.</dd>
+              <dt>1번</dt>
+              <dd>관리 폴더를 만들고 상단 상태가 준비 완료로 바뀝니다.</dd>
             </div>
             <div>
-              <dt>Sample</dt>
-              <dd>Knolet용 Tal, Dance, Performer, Act를 실제 파일로 씁니다.</dd>
+              <dt>2번</dt>
+              <dd>사람 역할, 능력, 실행 에이전트, 업무 흐름 예시를 만듭니다.</dd>
             </div>
             <div>
-              <dt>Refresh</dt>
-              <dd>디스크의 `.dance-of-tal/` 파일을 다시 읽어 목록과 canvas를 갱신합니다.</dd>
+              <dt>3번</dt>
+              <dd>파일 목록, 미리보기, 그림 흐름을 최신 상태로 다시 읽습니다.</dd>
             </div>
           </dl>
         </section>
 
         <section class="panel">
-          <h2>Core Model</h2>
+          <h2>네 가지 부품 뜻</h2>
           <dl class="model-list">
             <div>
               <dt>Tal</dt>
-              <dd>identity, behavior, base instructions</dd>
+              <dd>에이전트의 역할과 말투입니다.</dd>
             </div>
             <div>
               <dt>Dance</dt>
-              <dd>reusable skill package with SKILL.md</dd>
+              <dd>반복해서 쓸 수 있는 능력 묶음입니다.</dd>
             </div>
             <div>
               <dt>Performer</dt>
-              <dd>Tal + Dances + model + tools/MCP</dd>
+              <dd>역할과 능력을 합친 실제 실행 에이전트입니다.</dd>
             </div>
             <div>
               <dt>Act</dt>
-              <dd>participants, relations, rules, wake signals</dd>
+              <dd>여러 에이전트가 함께 일하는 순서입니다.</dd>
             </div>
           </dl>
         </section>
       </aside>
 
       <section class="workspace" aria-label="Asset authoring">
+        <section class="panel overview-panel">
+          <div class="panel-heading">
+            <div>
+              <p class="label">현재 목표</p>
+              <h2>문서 → 지식 구조 → 실행 가능한 Knolet 앱 흐름 만들기</h2>
+            </div>
+          </div>
+          <div class="simple-steps">
+            <article>
+              <strong>1</strong>
+              <span>작업공간 준비</span>
+              <p>dance-of-tal이 사용할 로컬 폴더를 준비합니다.</p>
+            </article>
+            <article>
+              <strong>2</strong>
+              <span>예시 생성</span>
+              <p>Knolet용 에이전트 부품 4개를 자동으로 만듭니다.</p>
+            </article>
+            <article>
+              <strong>3</strong>
+              <span>그림으로 확인</span>
+              <p>아래 Canvas에서 부품 연결 상태를 확인합니다.</p>
+            </article>
+            <article>
+              <strong>4</strong>
+              <span>Studio에서 편집</span>
+              <p>공식 DOT Studio를 열어 시각 편집을 이어갑니다.</p>
+            </article>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-heading">
+            <div>
+              <p class="label">로그인 안내</p>
+              <h2>GitHub Authorize 화면이 뜨면?</h2>
+            </div>
+          </div>
+          <div class="plain-guide">
+            <p>
+              DOT Studio나 OpenCode에서 Sign in을 누르면 GitHub가 dance-of-tal 앱에
+              계정 확인 권한을 줄지 묻습니다. 지금 화면에 보이는 권한은 이메일
+              주소 읽기이며, registry publish/login 같은 기능을 쓸 때 필요합니다.
+            </p>
+            <p>
+              단순히 예시를 보고 로컬 파일을 만드는 단계라면 지금 승인하지 않아도
+              됩니다. 나중에 `dot publish`나 개인 registry 기능을 쓸 때 승인하세요.
+            </p>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-heading">
+            <div>
+              <p class="label">한눈에 보는 흐름</p>
+              <h2>Document to Knolet App</h2>
+            </div>
+            <a class="link-button" href="http://127.0.0.1:43110" target="_blank" rel="noreferrer">
+              DOT Studio 열기
+            </a>
+          </div>
+          <div class="workflow-canvas" id="workflowCanvas">
+            <article class="canvas-node canvas-node--tal">
+              <span>Tal</span>
+              <strong>기획자 역할</strong>
+              <small>knolet-architect</small>
+            </article>
+            <article class="canvas-node canvas-node--dance">
+              <span>Dance</span>
+              <strong>문서 읽기 능력</strong>
+              <small>source-document-parser</small>
+            </article>
+            <article class="canvas-node canvas-node--performer">
+              <span>Performer</span>
+              <strong>실행 에이전트</strong>
+              <small>knolet-builder</small>
+            </article>
+            <article class="canvas-node canvas-node--act">
+              <span>Act</span>
+              <strong>전체 업무 순서</strong>
+              <small>document-to-knolet-app</small>
+            </article>
+          </div>
+        </section>
+
         <section class="panel editor-panel">
           <div class="panel-heading">
             <div>
-              <p class="label">Create Asset</p>
-              <h2>Tal / Dance / Performer / Act</h2>
+              <p class="label">고급 기능</p>
+              <h2>직접 부품 만들기</h2>
             </div>
             <span class="urn-preview" id="urnPreview">kind/@owner/stage/name</span>
           </div>
           <p class="note note--compact">
-            Create Asset은 공식 registry publish가 아니라 로컬 `.dance-of-tal/` 파일을
-            작성하는 도구입니다. Tal은 지시문, Dance는 SKILL.md, Performer는 실행
-            agent 구성, Act는 여러 Performer의 workflow 정의를 만듭니다.
+            예시 버튼으로 만든 기본 흐름을 바꾸고 싶을 때만 사용하세요. 여기서 저장하면
+            registry에 올라가는 것이 아니라 내 컴퓨터의 `.dance-of-tal/` 폴더에만 저장됩니다.
           </p>
 
           <form id="assetForm" class="asset-form">
             <label>
-              Kind
+              만들 부품
               <select id="assetKind" name="kind">
-                <option value="tal">Tal</option>
-                <option value="dance">Dance</option>
-                <option value="performer">Performer</option>
-                <option value="act">Act</option>
+                <option value="tal">Tal - 역할/성격</option>
+                <option value="dance">Dance - 능력</option>
+                <option value="performer">Performer - 실행 에이전트</option>
+                <option value="act">Act - 업무 흐름</option>
               </select>
             </label>
             <label>
-              Owner
+              만든 사람
               <input id="assetOwner" name="owner" value="martinyblue" autocomplete="off" />
             </label>
             <label>
-              Stage
+              묶음 이름
               <input id="assetStage" name="stage" value="local" autocomplete="off" />
             </label>
             <label>
-              Name
+              파일 이름
               <input id="assetName" name="name" value="knolet-architect" autocomplete="off" />
             </label>
             <label class="wide">
-              Body
+              내용
               <textarea id="assetBody" name="body" rows="14"></textarea>
             </label>
             <div class="form-actions wide">
-              <button type="submit">Write asset</button>
-              <button id="loadTemplate" class="secondary" type="button">Load template</button>
+              <button type="submit">내 컴퓨터에 저장</button>
+              <button id="loadTemplate" class="secondary" type="button">예시 내용 다시 불러오기</button>
             </div>
           </form>
         </section>
@@ -131,50 +218,16 @@
           <div class="panel-heading">
             <div>
               <p class="label">Import</p>
-              <h2>Local file to .dance-of-tal</h2>
+              <h2>내 파일 가져오기</h2>
             </div>
           </div>
           <div class="import-box">
             <p>
-              공식 DOT Studio의 sidebar `Open`은 보통 workspace 폴더를 여는 동작입니다.
-              파일 업로드를 기대했다면 이 Manager의 import를 사용하세요.
+              DOT Studio의 `Open`은 업로드가 아니라 폴더를 여는 기능입니다. 이미 갖고 있는
+              JSON 또는 SKILL.md 파일을 이 프로젝트에 넣고 싶다면 여기서 가져오세요.
             </p>
             <input id="assetImport" type="file" accept=".json,.md" />
-            <button id="importAsset" class="secondary" type="button">Import selected file</button>
-          </div>
-        </section>
-
-        <section class="panel">
-          <div class="panel-heading">
-            <div>
-              <p class="label">Canvas</p>
-              <h2>Document to Knolet App</h2>
-            </div>
-            <a class="link-button" href="http://127.0.0.1:43110" target="_blank" rel="noreferrer">
-              Open DOT Studio
-            </a>
-          </div>
-          <div class="workflow-canvas" id="workflowCanvas">
-            <article class="canvas-node canvas-node--tal">
-              <span>Tal</span>
-              <strong>knolet-architect</strong>
-              <small>identity / instructions</small>
-            </article>
-            <article class="canvas-node canvas-node--dance">
-              <span>Dance</span>
-              <strong>source-document-parser</strong>
-              <small>skill package</small>
-            </article>
-            <article class="canvas-node canvas-node--performer">
-              <span>Performer</span>
-              <strong>knolet-builder</strong>
-              <small>Tal + Dance + model</small>
-            </article>
-            <article class="canvas-node canvas-node--act">
-              <span>Act</span>
-              <strong>document-to-knolet-app</strong>
-              <small>workflow choreography</small>
-            </article>
+            <button id="importAsset" class="secondary" type="button">선택한 파일 가져오기</button>
           </div>
         </section>
 
@@ -182,8 +235,8 @@
           <section class="panel">
             <div class="panel-heading">
               <div>
-                <p class="label">Installed Assets</p>
-                <h2>.dance-of-tal</h2>
+                <p class="label">생성된 파일</p>
+                <h2>내 컴퓨터의 agent 부품 목록</h2>
               </div>
             </div>
             <div id="assetList" class="asset-list"></div>
@@ -192,19 +245,19 @@
           <section class="panel">
             <div class="panel-heading">
               <div>
-                <p class="label">Preview</p>
-                <h2 id="previewTitle">No file selected</h2>
+                <p class="label">파일 내용 확인</p>
+                <h2 id="previewTitle">아직 선택한 파일이 없습니다</h2>
               </div>
             </div>
-            <pre class="preview"><code id="previewBody">Select an asset to inspect the generated file.</code></pre>
+            <pre class="preview"><code id="previewBody">왼쪽 목록에서 파일을 누르면 실제 저장된 내용을 볼 수 있습니다.</code></pre>
           </section>
         </section>
 
         <section class="panel">
           <div class="panel-heading">
             <div>
-              <p class="label">Action Log</p>
-              <h2>What changed when you clicked</h2>
+              <p class="label">작업 기록</p>
+              <h2>내가 누른 버튼의 결과</h2>
             </div>
           </div>
           <ol id="actionLog" class="action-log"></ol>

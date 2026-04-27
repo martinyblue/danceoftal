@@ -1,6 +1,6 @@
 {
   "kind": "act",
-  "urn": "act/@martinyblue/local/document-to-knolet-app",
+  "urn": "act/@martinyblue/knolet/document-to-knolet-app",
   "participants": [
     {
       "id": "builder",
@@ -16,5 +16,5 @@
     "source-document-added",
     "spec-review-requested"
   ],
-  "updatedAt": "2026-04-27T08:07:59.088Z"
+  "updatedAt": "2026-04-27T08:07:59.091Z"
 }

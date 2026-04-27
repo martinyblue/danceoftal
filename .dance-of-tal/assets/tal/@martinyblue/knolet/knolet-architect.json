@@ -1,6 +1,6 @@
 {
   "kind": "tal",
-  "urn": "tal/@martinyblue/local/knolet-architect",
+  "urn": "tal/@martinyblue/knolet/knolet-architect",
   "name": "Knolet Architect",
   "summary": "Domain knowledge to executable workflow app designer.",
   "instructions": [
@@ -8,5 +8,5 @@
     "Convert source documents into explicit KnoletSpec candidates.",
     "Preserve fork/share/version boundaries in every workflow."
   ],
-  "updatedAt": "2026-04-27T08:07:59.084Z"
+  "updatedAt": "2026-04-27T08:07:59.089Z"
 }

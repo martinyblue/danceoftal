@@ -104,6 +104,30 @@ function assetPath({ kind, owner, stage, name }) {
   };
 }
 
+function officialAssetPath({ kind, owner, stage, name }) {
+  const cleanKind = slug(kind, "tal");
+  if (!assetKinds.has(cleanKind)) {
+    throw new Error("Unsupported asset kind");
+  }
+
+  const cleanOwner = slug(owner, "martinyblue");
+  const cleanStage = slug(stage, "knolet");
+  const cleanName = slug(name, "asset");
+  const ownerDir = `@${cleanOwner}`;
+
+  if (cleanKind === "dance") {
+    return {
+      urn: `${cleanKind}/${ownerDir}/${cleanStage}/${cleanName}`,
+      filePath: path.join(workspaceRoot, "assets", cleanKind, ownerDir, cleanStage, cleanName, "SKILL.md"),
+    };
+  }
+
+  return {
+    urn: `${cleanKind}/${ownerDir}/${cleanStage}/${cleanName}`,
+    filePath: path.join(workspaceRoot, "assets", cleanKind, ownerDir, cleanStage, `${cleanName}.json`),
+  };
+}
+
 function assetFromUrn(urn) {
   const match = String(urn || "").match(/^(tal|dance|performer|act)\/@([^/]+)\/([^/]+)\/([^/]+)$/);
   if (!match) {
@@ -145,6 +169,16 @@ async function writeAsset(payload) {
   await ensureWorkspace();
   const kind = slug(payload.kind, "tal");
   const { urn, filePath } = assetPath({ ...payload, kind });
+  const content = normalizeBody(kind, urn, payload.body);
+  await fs.mkdir(path.dirname(filePath), { recursive: true });
+  await fs.writeFile(filePath, content);
+  return { urn, path: path.relative(root, filePath) };
+}
+
+async function writeOfficialAsset(payload) {
+  await ensureWorkspace();
+  const kind = slug(payload.kind, "tal");
+  const { urn, filePath } = officialAssetPath({ ...payload, kind });
   const content = normalizeBody(kind, urn, payload.body);
   await fs.mkdir(path.dirname(filePath), { recursive: true });
   await fs.writeFile(filePath, content);
@@ -331,6 +365,14 @@ points, workflow candidates, UI states, and runtime constraints.
   const written = [];
   for (const asset of assets) {
     written.push(await writeAsset(asset));
+  }
+  for (const asset of assets) {
+    written.push(
+      await writeOfficialAsset({
+        ...asset,
+        stage: "knolet",
+      }),
+    );
   }
   return written;
 }

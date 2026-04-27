@@ -153,21 +153,29 @@ function logAction(message) {
 
 function renderStatus(status) {
   elements.workspaceState.textContent = status.workspaceExists
-    ? ".dance-of-tal ready"
-    : ".dance-of-tal missing";
-  elements.assetCount.textContent = `${status.assetCount} assets`;
+    ? "작업공간 준비됨"
+    : "작업공간 없음";
+  elements.assetCount.textContent = `${status.assetCount}개 부품`;
   if (status.officialAssets) {
-    elements.assetCount.textContent = `${status.assetCount} assets (${status.officialAssets} official)`;
+    elements.assetCount.textContent = `${status.assetCount}개 부품 / 공식형 ${status.officialAssets}개`;
   }
 }
 
 function renderCanvas(assets) {
   const assetSet = new Set(assets.map((asset) => asset.urn));
   const checks = {
-    tal: assetSet.has("tal/@martinyblue/local/knolet-architect"),
-    dance: assetSet.has("dance/@martinyblue/local/source-document-parser"),
-    performer: assetSet.has("performer/@martinyblue/local/knolet-builder"),
-    act: assetSet.has("act/@martinyblue/local/document-to-knolet-app"),
+    tal:
+      assetSet.has("tal/@martinyblue/local/knolet-architect") ||
+      assetSet.has("tal/@martinyblue/knolet/knolet-architect"),
+    dance:
+      assetSet.has("dance/@martinyblue/local/source-document-parser") ||
+      assetSet.has("dance/@martinyblue/knolet/source-document-parser"),
+    performer:
+      assetSet.has("performer/@martinyblue/local/knolet-builder") ||
+      assetSet.has("performer/@martinyblue/knolet/knolet-builder"),
+    act:
+      assetSet.has("act/@martinyblue/local/document-to-knolet-app") ||
+      assetSet.has("act/@martinyblue/knolet/document-to-knolet-app"),
   };
 
   for (const node of elements.workflowCanvas.querySelectorAll(".canvas-node")) {
@@ -177,7 +185,7 @@ function renderCanvas(assets) {
       .find((className) => className.startsWith("canvas-node--"))
       ?.replace("canvas-node--", "");
     node.dataset.ready = checks[kind] ? "true" : "false";
-    helper.textContent = checks[kind] ? helper.dataset.baseText : `missing: ${helper.dataset.baseText}`;
+    helper.textContent = checks[kind] ? helper.dataset.baseText : `아직 없음: ${helper.dataset.baseText}`;
   }
 }
 
@@ -188,7 +196,7 @@ function renderAssets(assets) {
   if (!assets.length) {
     const empty = document.createElement("p");
     empty.className = "empty";
-    empty.textContent = "No Tal, Dance, Performer, or Act assets yet.";
+    empty.textContent = "아직 만든 부품이 없습니다. 왼쪽의 1번, 2번 버튼을 눌러 시작하세요.";
     elements.assetList.append(empty);
     return;
   }
@@ -208,7 +216,7 @@ async function refresh() {
   renderStatus(status);
   renderAssets(status.assets);
   renderCanvas(status.assets);
-  logAction(`Refreshed workspace: ${status.assetCount} assets, ${status.officialAssets || 0} official.`);
+  logAction(`화면을 새로 불러왔습니다. 부품 ${status.assetCount}개, 공식형 ${status.officialAssets || 0}개.`);
 }
 
 async function previewAsset(filePath) {
@@ -232,7 +240,7 @@ async function createAsset(event) {
   });
   await refresh();
   await previewAsset(result.path);
-  logAction(`Wrote ${result.urn} to ${result.path}.`);
+  logAction(`저장 완료: ${result.urn}`);
 }
 
 async function importSelectedAsset() {
@@ -251,7 +259,7 @@ async function importSelectedAsset() {
   });
   await refresh();
   await previewAsset(result.path);
-  logAction(`Imported ${file.name} as ${result.urn}.`);
+  logAction(`파일 가져오기 완료: ${file.name}`);
 }
 
 async function runAction(button, action) {
@@ -289,14 +297,14 @@ elements.initWorkspace.addEventListener("click", () =>
   runAction(elements.initWorkspace, async () => {
     const result = await request("/api/init", { method: "POST", body: "{}" });
     await refresh();
-    logAction(`Initialized ${result.workspace}.`);
+    logAction(`${result.workspace} 작업공간을 준비했습니다.`);
   }),
 );
 elements.seedWorkspace.addEventListener("click", () =>
   runAction(elements.seedWorkspace, async () => {
     const result = await request("/api/seed", { method: "POST", body: "{}" });
     await refresh();
-    logAction(`Created sample flow: ${result.written.length} files written.`);
+    logAction(`Knolet 예시를 만들었습니다. ${result.written.length}개 파일 저장.`);
   }),
 );
 elements.refreshWorkspace.addEventListener("click", () =>
