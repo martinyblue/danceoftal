@@ -1,0 +1,19 @@
+{
+  "kind": "performer",
+  "urn": "performer/@martinyblue/local/knolet-builder",
+  "tal": "tal/@martinyblue/local/knolet-architect",
+  "dances": [
+    "dance/@martinyblue/local/source-document-parser"
+  ],
+  "model": {
+    "provider": "openai",
+    "name": "gpt-5.4"
+  },
+  "tools": {
+    "local": [
+      "filesystem"
+    ],
+    "mcp": []
+  },
+  "updatedAt": "2026-04-27T07:08:53.381Z"
+}

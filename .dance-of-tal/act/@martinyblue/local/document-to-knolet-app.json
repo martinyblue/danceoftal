@@ -1,0 +1,20 @@
+{
+  "kind": "act",
+  "urn": "act/@martinyblue/local/document-to-knolet-app",
+  "participants": [
+    {
+      "id": "builder",
+      "performer": "performer/@martinyblue/local/knolet-builder"
+    }
+  ],
+  "relations": [],
+  "actRules": [
+    "Source interpretation and runtime app generation must remain separate.",
+    "Output must include Source Document, Knowledge Structure, KnoletSpec, Runtime App, Version/Fork/Share."
+  ],
+  "subscriptions": [
+    "source-document-added",
+    "spec-review-requested"
+  ],
+  "updatedAt": "2026-04-27T07:08:53.382Z"
+}
