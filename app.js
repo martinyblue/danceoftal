@@ -1,5 +1,6 @@
 const state = {
   assets: [],
+  currentRun: null,
 };
 
 const templates = {
@@ -118,6 +119,20 @@ const elements = {
   refreshWorkflowPlan: document.querySelector("#refreshWorkflowPlan"),
   workflowBlueprint: document.querySelector("#workflowBlueprint"),
   workflowPrompt: document.querySelector("#workflowPrompt"),
+  refreshRuns: document.querySelector("#refreshRuns"),
+  runForm: document.querySelector("#runForm"),
+  runTitle: document.querySelector("#runTitle"),
+  runTargetUser: document.querySelector("#runTargetUser"),
+  runSourceDocument: document.querySelector("#runSourceDocument"),
+  runRuntimeConstraints: document.querySelector("#runRuntimeConstraints"),
+  runList: document.querySelector("#runList"),
+  runOutputTitle: document.querySelector("#runOutputTitle"),
+  saveRunOutputs: document.querySelector("#saveRunOutputs"),
+  outputKnowledge: document.querySelector("#outputKnowledge"),
+  outputSpec: document.querySelector("#outputSpec"),
+  outputRuntime: document.querySelector("#outputRuntime"),
+  outputVersioning: document.querySelector("#outputVersioning"),
+  outputChecklist: document.querySelector("#outputChecklist"),
   studioState: document.querySelector("#studioState"),
   registryKind: document.querySelector("#registryKind"),
   registryQuery: document.querySelector("#registryQuery"),
@@ -527,6 +542,82 @@ async function loadWorkflowBlueprint() {
   logAction(`Knolet workflow blueprint 확인 완료: ${workflow.ready ? "준비됨" : "확인 필요"}`);
 }
 
+function fillRunOutputs(run) {
+  state.currentRun = run;
+  elements.runOutputTitle.textContent = `${run.title} / ${run.status}`;
+  elements.outputKnowledge.value = run.outputs?.knowledgeStructure || "";
+  elements.outputSpec.value = run.outputs?.knoletSpec || "";
+  elements.outputRuntime.value = run.outputs?.runtimeAppPlan || "";
+  elements.outputVersioning.value = run.outputs?.versionForkShare || "";
+  elements.outputChecklist.value = run.outputs?.nextChecklist || "";
+}
+
+function renderRunList(runs) {
+  elements.runList.innerHTML = "";
+  if (!runs.length) {
+    elements.runList.innerHTML = `<p class="empty">아직 저장한 workflow 실행 기록이 없습니다.</p>`;
+    return;
+  }
+  for (const run of runs) {
+    const row = document.createElement("button");
+    row.className = "asset-row";
+    row.type = "button";
+    row.innerHTML = `<strong>${run.title}</strong><span>${run.status} / ${run.updatedAt || ""}</span>`;
+    row.addEventListener("click", () => loadRun(run.id));
+    elements.runList.append(row);
+  }
+}
+
+async function loadRuns() {
+  const data = await request("/api/knolet/runs");
+  renderRunList(data.runs || []);
+  logAction(`Workflow 실행 기록 ${data.runs?.length || 0}개를 읽었습니다.`);
+}
+
+async function loadRun(id) {
+  const run = await request(`/api/knolet/runs/${encodeURIComponent(id)}`);
+  fillRunOutputs(run);
+  logAction(`실행 기록 선택: ${run.title}`);
+}
+
+async function createRun(event) {
+  event.preventDefault();
+  const run = await request("/api/knolet/runs", {
+    method: "POST",
+    body: JSON.stringify({
+      title: elements.runTitle.value,
+      sourceTitle: elements.runTitle.value,
+      sourceDocument: elements.runSourceDocument.value,
+      targetUser: elements.runTargetUser.value,
+      runtimeConstraints: elements.runRuntimeConstraints.value,
+    }),
+  });
+  fillRunOutputs(run);
+  await loadRuns();
+  logAction(`새 workflow 실행 기록 생성: ${run.title}`);
+}
+
+async function saveRunOutputs() {
+  if (!state.currentRun?.id) {
+    throw new Error("먼저 workflow 실행 기록을 선택하세요.");
+  }
+  const run = await request(`/api/knolet/runs/${encodeURIComponent(state.currentRun.id)}`, {
+    method: "PUT",
+    body: JSON.stringify({
+      outputs: {
+        knowledgeStructure: elements.outputKnowledge.value,
+        knoletSpec: elements.outputSpec.value,
+        runtimeAppPlan: elements.outputRuntime.value,
+        versionForkShare: elements.outputVersioning.value,
+        nextChecklist: elements.outputChecklist.value,
+      },
+    }),
+  });
+  fillRunOutputs(run);
+  await loadRuns();
+  logAction(`Workflow 산출물 저장: ${run.title}`);
+}
+
 async function previewAsset(filePath) {
   const data = await request(`/api/file?path=${encodeURIComponent(filePath)}`);
   elements.previewTitle.textContent = data.path;
@@ -730,6 +821,11 @@ elements.seedStudio.addEventListener("click", () =>
 elements.refreshWorkflowPlan.addEventListener("click", () =>
   runAction(elements.refreshWorkflowPlan, loadWorkflowBlueprint),
 );
+elements.refreshRuns.addEventListener("click", () => runAction(elements.refreshRuns, loadRuns));
+elements.runForm.addEventListener("submit", createRun);
+elements.saveRunOutputs.addEventListener("click", () =>
+  runAction(elements.saveRunOutputs, saveRunOutputs),
+);
 elements.searchRegistry.addEventListener("click", () =>
   runAction(elements.searchRegistry, searchRegistry),
 );
@@ -756,4 +852,7 @@ runDiagnostics().catch((error) => {
 });
 loadWorkflowBlueprint().catch((error) => {
   elements.workflowBlueprint.innerHTML = `<p class="empty">${error.message}</p>`;
+});
+loadRuns().catch((error) => {
+  elements.runList.innerHTML = `<p class="empty">${error.message}</p>`;
 });

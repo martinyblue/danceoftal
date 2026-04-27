@@ -260,6 +260,73 @@
           </div>
         </section>
 
+        <section class="panel workflow-runs-panel">
+          <div class="panel-heading">
+            <div>
+              <p class="label">실행 기록</p>
+              <h2>Workflow 산출물 저장</h2>
+            </div>
+            <button id="refreshRuns" class="secondary" type="button">기록 다시 읽기</button>
+          </div>
+          <div class="run-layout">
+            <form id="runForm" class="run-form">
+              <label>
+                실행 제목
+                <input id="runTitle" value="Document to Knolet App Run" autocomplete="off" />
+              </label>
+              <label>
+                대상 사용자
+                <input id="runTargetUser" placeholder="예: 로컬 앱 운영자" autocomplete="off" />
+              </label>
+              <label class="wide">
+                원문/요약
+                <textarea id="runSourceDocument" rows="6" placeholder="OpenCode에 넘길 문서 원문 또는 요약"></textarea>
+              </label>
+              <label class="wide">
+                실행 제약
+                <textarea id="runRuntimeConstraints" rows="4" placeholder="로컬 실행, 권한, 데이터, UI 제약"></textarea>
+              </label>
+              <button type="submit">새 실행 기록 만들기</button>
+            </form>
+            <div>
+              <div id="runList" class="asset-list asset-list--compact">
+                <p class="empty">아직 저장한 workflow 실행 기록이 없습니다.</p>
+              </div>
+            </div>
+          </div>
+          <div class="run-output-editor">
+            <div class="panel-heading panel-heading--sub">
+              <div>
+                <p class="label">산출물 캡처</p>
+                <h2 id="runOutputTitle">실행 기록을 선택하세요</h2>
+              </div>
+              <button id="saveRunOutputs" class="secondary" type="button">산출물 저장</button>
+            </div>
+            <div class="run-output-grid">
+              <label>
+                Knowledge Structure
+                <textarea id="outputKnowledge" rows="7"></textarea>
+              </label>
+              <label>
+                KnoletSpec
+                <textarea id="outputSpec" rows="7"></textarea>
+              </label>
+              <label>
+                Runtime App Plan
+                <textarea id="outputRuntime" rows="7"></textarea>
+              </label>
+              <label>
+                Version / Fork / Share
+                <textarea id="outputVersioning" rows="7"></textarea>
+              </label>
+              <label class="wide">
+                Next Action Checklist
+                <textarea id="outputChecklist" rows="5"></textarea>
+              </label>
+            </div>
+          </div>
+        </section>
+
         <section class="panel">
           <div class="panel-heading">
             <div>

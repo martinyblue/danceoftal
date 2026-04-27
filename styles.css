@@ -405,6 +405,38 @@ textarea {
   line-height: 1.6;
 }
 
+.run-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(280px, 0.9fr);
+  gap: 16px;
+  padding: 16px;
+}
+
+.run-form,
+.run-output-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.run-form textarea,
+.run-output-grid textarea {
+  min-height: 120px;
+}
+
+.run-form button {
+  width: fit-content;
+  padding: 0 14px;
+}
+
+.run-output-editor {
+  border-top: 1px solid var(--line);
+}
+
+.run-output-grid {
+  padding: 16px;
+}
+
 .plain-guide {
   display: grid;
   gap: 10px;
@@ -880,6 +912,9 @@ code {
   .guidance-grid,
   .guide-columns,
   .readiness-list,
+  .run-layout,
+  .run-form,
+  .run-output-grid,
   .diagnostics-grid,
   .diagnostics-body,
   .workflow-canvas,

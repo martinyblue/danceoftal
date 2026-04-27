@@ -5,6 +5,7 @@ const { execFile } = require("node:child_process");
 
 const root = process.cwd();
 const workspaceRoot = path.join(root, ".dance-of-tal");
+const workflowRunsRoot = path.join(workspaceRoot, "runs");
 const port = Number(process.env.PORT || 8080);
 const studioUrl = process.env.DOT_STUDIO_URL || "http://127.0.0.1:43110";
 const opencodeUrl = process.env.OPENCODE_URL || "http://127.0.0.1:43120";
@@ -102,6 +103,7 @@ async function readPackageVersion() {
 
 async function ensureWorkspace() {
   await fs.mkdir(workspaceRoot, { recursive: true });
+  await fs.mkdir(workflowRunsRoot, { recursive: true });
   for (const kind of assetKinds) {
     await fs.mkdir(path.join(workspaceRoot, kind), { recursive: true });
   }
@@ -947,6 +949,111 @@ async function status() {
   };
 }
 
+function workflowRunPath(id) {
+  const cleanId = slug(id, "");
+  if (!cleanId) {
+    throw new Error("Workflow run id is required");
+  }
+  return path.join(workflowRunsRoot, `${cleanId}.json`);
+}
+
+function defaultRunOutputs(payload = {}) {
+  return {
+    knowledgeStructure: String(payload.knowledgeStructure || ""),
+    knoletSpec: String(payload.knoletSpec || ""),
+    runtimeAppPlan: String(payload.runtimeAppPlan || ""),
+    versionForkShare: String(payload.versionForkShare || ""),
+    nextChecklist: String(payload.nextChecklist || ""),
+  };
+}
+
+async function readWorkflowRun(id) {
+  const filePath = workflowRunPath(id);
+  const run = JSON.parse(await fs.readFile(filePath, "utf8"));
+  return { ...run, path: path.relative(root, filePath) };
+}
+
+async function listWorkflowRuns() {
+  await ensureWorkspace();
+  const entries = await fs.readdir(workflowRunsRoot, { withFileTypes: true });
+  const runs = [];
+  for (const entry of entries) {
+    if (!entry.isFile() || !entry.name.endsWith(".json")) {
+      continue;
+    }
+    try {
+      const run = JSON.parse(await fs.readFile(path.join(workflowRunsRoot, entry.name), "utf8"));
+      runs.push({
+        id: run.id,
+        title: run.title,
+        status: run.status,
+        updatedAt: run.updatedAt,
+        sourceTitle: run.sourceTitle,
+        path: path.relative(root, path.join(workflowRunsRoot, entry.name)),
+      });
+    } catch {
+      // Ignore malformed local run files so one bad draft does not break the Manager.
+    }
+  }
+  return runs.sort((a, b) => String(b.updatedAt || "").localeCompare(String(a.updatedAt || "")));
+}
+
+async function createWorkflowRun(payload) {
+  await ensureWorkspace();
+  const createdAt = new Date().toISOString();
+  const title = String(payload.title || payload.sourceTitle || "Document to Knolet App Run").trim();
+  const id = `${createdAt.slice(0, 10)}-${slug(title, "knolet-run")}-${Date.now().toString(36)}`;
+  const run = {
+    id,
+    title,
+    status: "draft",
+    sourceTitle: String(payload.sourceTitle || title).trim(),
+    sourceDocument: String(payload.sourceDocument || "").trim(),
+    targetUser: String(payload.targetUser || "").trim(),
+    runtimeConstraints: String(payload.runtimeConstraints || "").trim(),
+    outputs: defaultRunOutputs(payload.outputs || {}),
+    review: {
+      score: null,
+      passed: false,
+      checklist: [],
+    },
+    createdAt,
+    updatedAt: createdAt,
+  };
+  await fs.writeFile(workflowRunPath(id), JSON.stringify(run, null, 2));
+  return readWorkflowRun(id);
+}
+
+async function updateWorkflowRun(id, payload) {
+  const current = await readWorkflowRun(id);
+  const next = {
+    ...current,
+    title: payload.title === undefined ? current.title : String(payload.title || current.title).trim(),
+    sourceTitle:
+      payload.sourceTitle === undefined ? current.sourceTitle : String(payload.sourceTitle || current.sourceTitle).trim(),
+    sourceDocument:
+      payload.sourceDocument === undefined ? current.sourceDocument : String(payload.sourceDocument || "").trim(),
+    targetUser: payload.targetUser === undefined ? current.targetUser : String(payload.targetUser || "").trim(),
+    runtimeConstraints:
+      payload.runtimeConstraints === undefined
+        ? current.runtimeConstraints
+        : String(payload.runtimeConstraints || "").trim(),
+    outputs: {
+      ...defaultRunOutputs(current.outputs || {}),
+      ...defaultRunOutputs(payload.outputs || current.outputs || {}),
+    },
+    status: payload.status || current.status,
+    updatedAt: new Date().toISOString(),
+  };
+  delete next.path;
+  const hasAllOutputs = Object.values(next.outputs).every((value) => String(value || "").trim().length > 0);
+  if (hasAllOutputs && next.status === "draft") {
+    next.status = "captured";
+  }
+  await fs.writeFile(workflowRunPath(id), JSON.stringify(next, null, 2));
+  return readWorkflowRun(id);
+}
+
 async function knoletWorkflowBlueprint() {
   const workspaceStatus = await status();
   const kindSummary = assetKindSummary(workspaceStatus.assets);
@@ -1274,6 +1381,29 @@ async function route(request, response) {
 
   if (url.pathname === "/api/knolet/workflow" && request.method === "GET") {
     send(response, 200, await knoletWorkflowBlueprint());
+    return;
+  }
+
+  if (url.pathname === "/api/knolet/runs" && request.method === "GET") {
+    send(response, 200, { runs: await listWorkflowRuns() });
+    return;
+  }
+
+  if (url.pathname === "/api/knolet/runs" && request.method === "POST") {
+    const payload = await parseBody(request);
+    send(response, 200, await createWorkflowRun(payload));
+    return;
+  }
+
+  const runMatch = url.pathname.match(/^\/api\/knolet\/runs\/([^/]+)$/);
+  if (runMatch && request.method === "GET") {
+    send(response, 200, await readWorkflowRun(runMatch[1]));
+    return;
+  }
+
+  if (runMatch && request.method === "PUT") {
+    const payload = await parseBody(request);
+    send(response, 200, await updateWorkflowRun(runMatch[1], payload));
     return;
   }
 
