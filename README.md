@@ -1,5 +1,7 @@
 # dance-of-tal Local Manager
 
+Version: `0.1.1`
+
 This repository contains a local-first manager for `dance-of-tal` style assets.
 It is built for the project owner, not first-time visitors. The local UI creates
 and previews real files under `.dance-of-tal/`.
@@ -31,6 +33,13 @@ Useful local URLs:
 - Manager: <http://127.0.0.1:8080>
 - DOT Studio: <http://127.0.0.1:43110>
 - OpenCode: <http://127.0.0.1:43120>
+
+Start OpenCode and DOT Studio in separate terminals when restarting manually:
+
+```bash
+PATH="$PWD/.tools/bin:/tmp/node-v22.11.0-darwin-arm64/bin:$PATH" npm run opencode
+PATH="$PWD/.tools/bin:/tmp/node-v22.11.0-darwin-arm64/bin:$PATH" npm run studio
+```
 
 ## Official CLI Setup
 
@@ -86,6 +95,20 @@ Use the Manager at <http://127.0.0.1:8080> in this order:
 The Manager is a custom local operator UI for this repository. The official
 dance-of-tal surfaces are `dot` CLI and DOT Studio; the Manager exists only to
 make local verification and repeated setup easier.
+
+## Troubleshooting
+
+If OpenCode shows `Failed to fetch dynamically imported module`, the OpenCode
+browser tab is usually pointing at a stale session while the local OpenCode
+server is stopped or restarted. Restart OpenCode, then open the base URL again:
+
+1. Start OpenCode with `npm run opencode`.
+2. Confirm <http://127.0.0.1:43120> opens.
+3. Open DOT Studio at <http://127.0.0.1:43110>.
+4. If a `/session` URL is still open, use the base OpenCode URL or hard-refresh.
+
+For this repository, every meaningful development update should be reflected by
+a package version bump plus a Git commit pushed to `martinyblue/danceoftal`.
 
 ## Registry Notes
 

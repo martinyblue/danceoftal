@@ -1,11 +1,12 @@
 {
   "name": "danceoftal-local-manager",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "description": "Local manager for dance-of-tal style Tal, Dance, Performer, and Act assets.",
   "scripts": {
     "start": "node server.js",
     "dot": "dot",
+    "opencode": "OPENCODE_CONFIG_DIR=/Users/donghyunyoo/.dot-studio/opencode /Users/donghyunyoo/Desktop/danceoftal/.tools/lib/node_modules/dot-studio/node_modules/opencode-ai/bin/opencode serve --port 43120 --hostname 127.0.0.1 --log-level INFO",
     "studio": "dot-studio open . --port 43110 --opencode-url http://127.0.0.1:43120 --no-open",
     "studio:doctor": "dot-studio doctor . --verbose"
   },
