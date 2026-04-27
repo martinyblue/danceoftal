@@ -1,6 +1,6 @@
 # dance-of-tal Local Manager
 
-Version: `0.1.2`
+Version: `0.1.3`
 
 This repository contains a local-first manager for `dance-of-tal` style assets.
 It is built for the project owner, not first-time visitors. The local UI creates
@@ -79,6 +79,13 @@ dot-studio doctor . --verbose
 - install working registry assets into the current stage workspace
 - add Dance packages from GitHub sources when the source repository is reachable
 - diagnose Manager, DOT Studio, OpenCode, registry, GitHub, and version state
+- explain the current DOT Studio canvas in Korean and show what to click next
+- show an execution readiness checklist for workspace, assets, Studio, OpenCode,
+  and GitHub sync
+- provide OpenCode recovery actions for opening the base URL, rechecking status,
+  and understanding stale `/session` URLs
+- translate common registry and GitHub install failures into non-technical Korean
+  guidance
 - list generated assets
 - preview generated JSON and `SKILL.md` files
 - inspect official `dot install` assets under `.dance-of-tal/assets/`
@@ -99,6 +106,10 @@ make local verification and repeated setup easier.
 
 ## Troubleshooting
 
+The Manager now includes an OpenCode recovery panel. Use `OpenCode 기본 URL 열기`
+first, then `OpenCode 상태 재확인`. OpenCode restart remains a manual terminal
+step until the planned `0.2.0` integrated launcher.
+
 If OpenCode shows `Failed to fetch dynamically imported module`, the OpenCode
 browser tab is usually pointing at a stale session while the local OpenCode
 server is stopped or restarted. Restart OpenCode, then open the base URL again:
@@ -113,6 +124,9 @@ a package version bump plus a Git commit pushed to `martinyblue/danceoftal`.
 
 ## Version Notes
 
+- `0.1.3`: added DOT Studio usage guidance, OpenCode recovery actions, an
+  execution readiness checklist, and Korean translations for common registry
+  install failures.
 - `0.1.2`: added the Manager diagnostics panel for service health, OpenCode stale
   session guidance, workspace readiness, package version, and GitHub sync state.
 - `0.1.1`: documented the OpenCode restart flow and added an `npm run opencode`

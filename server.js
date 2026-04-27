@@ -396,6 +396,39 @@ async function studioRequest(pathname, options = {}) {
   return payload;
 }
 
+function translateOperationalError(message) {
+  const raw = String(message || "Request failed");
+  const lower = raw.toLowerCase();
+
+  if (lower.includes("repository not found")) {
+    return "registry에는 보이지만 실제 GitHub 저장소가 비공개이거나 삭제된 상태입니다.";
+  }
+  if (
+    lower.includes("authentication failed") ||
+    lower.includes("unauthorized") ||
+    lower.includes("permission denied") ||
+    lower.includes("http 401") ||
+    lower.includes("http 403")
+  ) {
+    return "내 GitHub 권한으로 이 저장소나 registry 항목에 접근할 수 없습니다.";
+  }
+  if (
+    lower.includes("timeout") ||
+    lower.includes("timed out") ||
+    lower.includes("abort") ||
+    lower.includes("fetch failed") ||
+    lower.includes("econnreset") ||
+    lower.includes("enotfound")
+  ) {
+    return "네트워크 응답이 늦거나 중간에 끊겼습니다. 잠시 뒤 다시 시도하세요.";
+  }
+  if (lower.includes("not found") && lower.includes("registry")) {
+    return "registry에서 해당 항목을 찾지 못했습니다. URN 철자와 kind를 다시 확인하세요.";
+  }
+
+  return raw;
+}
+
 async function checkHttpJson(name, url) {
   try {
     const response = await fetchWithTimeout(url);
@@ -471,6 +504,140 @@ async function gitDiagnostics() {
   };
 }
 
+function assetKindSummary(assets) {
+  const kinds = Object.fromEntries([...assetKinds].map((kind) => [kind, false]));
+  for (const asset of assets) {
+    const descriptor = assetFromUrn(asset.urn);
+    if (descriptor?.kind && descriptor.kind in kinds) {
+      kinds[descriptor.kind] = true;
+    }
+  }
+  return kinds;
+}
+
+function compactStudioWorkspace(workspaceId, workspace) {
+  const payload = workspace.payload || {};
+  const performers = Array.isArray(payload.performers) ? payload.performers : [];
+  const acts = Array.isArray(payload.acts) ? payload.acts : [];
+
+  return {
+    id: workspaceId,
+    ok: workspace.ok,
+    performerCount: performers.length,
+    actCount: acts.length,
+    performers: performers.map((performer) => ({
+      id: performer.id,
+      name: performer.name || performer.meta?.authoring?.slug || performer.id || "Unnamed Performer",
+      description: performer.description || performer.meta?.authoring?.description || "",
+      talCount: performer.talRef ? 1 : 0,
+      danceCount: Array.isArray(performer.danceRefs) ? performer.danceRefs.length : 0,
+      talUrn: performer.talRef?.urn || null,
+      danceUrns: Array.isArray(performer.danceRefs)
+        ? performer.danceRefs.map((ref) => ref.urn).filter(Boolean)
+        : [],
+    })),
+    acts: acts.map((act) => {
+      const participants = act.participants && typeof act.participants === "object" ? act.participants : {};
+      return {
+        id: act.id,
+        name: act.name || act.meta?.authoring?.slug || act.id || "Unnamed Act",
+        description: act.description || act.meta?.authoring?.description || "",
+        participantNames: Object.values(participants).map(
+          (participant) =>
+            participant.displayName ||
+            participant.performerRef?.urn ||
+            participant.performer ||
+            "Performer",
+        ),
+      };
+    }),
+  };
+}
+
+function buildStudioGuide(studioWorkspace) {
+  if (!studioWorkspace?.ok) {
+    return {
+      available: false,
+      performers: [],
+      acts: [],
+      steps: [
+        "Manager에서 3번 Studio 캔버스에 배치를 누릅니다.",
+        "DOT Studio를 열고 canvas에 Performer와 Act가 보이는지 확인합니다.",
+      ],
+    };
+  }
+
+  return {
+    available: true,
+    performers: studioWorkspace.performers || [],
+    acts: studioWorkspace.acts || [],
+    steps: [
+      "DOT Studio 열기를 누르고 canvas 왼쪽의 Knolet Builder Performer를 선택합니다.",
+      "Tal과 Dance 연결을 확인한 뒤, 필요한 경우 Performer 설정에서 모델과 도구를 조정합니다.",
+      "Document to Knolet App Act를 선택해 workflow가 Knolet Builder를 participant로 쓰는지 확인합니다.",
+      "OpenCode 기본 URL이 정상인 상태에서 Studio의 실행 흐름을 테스트합니다.",
+    ],
+  };
+}
+
+function buildReadinessChecks({ workspaceStatus, kindSummary, studioWorkspace, opencode, opencodeChunk, git }) {
+  const hasCanvas = Boolean(studioWorkspace?.performerCount && studioWorkspace?.actCount);
+  const opencodeReady = Boolean(opencode.ok && opencodeChunk.ok);
+  return [
+    {
+      key: "workspace",
+      label: "workspace 있음",
+      ok: workspaceStatus.workspaceExists,
+      detail: workspaceStatus.workspaceExists ? ".dance-of-tal 폴더가 준비됐습니다." : "1번 작업공간 준비를 누르세요.",
+    },
+    {
+      key: "tal",
+      label: "Tal 있음",
+      ok: kindSummary.tal,
+      detail: kindSummary.tal ? "에이전트 역할 부품이 있습니다." : "Knolet 예시 만들기를 누르세요.",
+    },
+    {
+      key: "dance",
+      label: "Dance 있음",
+      ok: kindSummary.dance,
+      detail: kindSummary.dance ? "문서 읽기 능력 부품이 있습니다." : "Knolet 예시 만들기를 누르세요.",
+    },
+    {
+      key: "performer",
+      label: "Performer 있음",
+      ok: kindSummary.performer,
+      detail: kindSummary.performer ? "실행 에이전트 부품이 있습니다." : "Knolet 예시 만들기를 누르세요.",
+    },
+    {
+      key: "act",
+      label: "Act 있음",
+      ok: kindSummary.act,
+      detail: kindSummary.act ? "workflow 부품이 있습니다." : "Knolet 예시 만들기를 누르세요.",
+    },
+    {
+      key: "studio",
+      label: "Studio canvas 배치됨",
+      ok: hasCanvas,
+      detail: hasCanvas ? "Performer와 Act가 canvas에 보입니다." : "3번 Studio 캔버스에 배치를 누르세요.",
+    },
+    {
+      key: "opencode",
+      label: "OpenCode 연결됨",
+      ok: opencodeReady,
+      detail: opencodeReady ? "기본 URL과 화면 파일이 열립니다." : "OpenCode 기본 URL을 열고 상태를 재확인하세요.",
+    },
+    {
+      key: "github",
+      label: "GitHub 반영됨",
+      ok: git.clean && git.syncedWithOrigin,
+      detail:
+        git.clean && git.syncedWithOrigin
+          ? `${git.branch} / ${git.shortHead}가 origin/main과 같습니다.`
+          : "변경사항 커밋과 push 상태를 확인해야 합니다.",
+    },
+  ];
+}
+
 function buildIssues({ studio, opencode, opencodeChunk, git, workspaceStatus, studioWorkspace }) {
   const issues = [];
   if (!workspaceStatus.workspaceExists) {
@@ -543,12 +710,7 @@ async function diagnostics() {
     const workspaceId = workspaces.payload?.[0]?.id;
     if (workspaceId) {
       const workspace = await checkHttpJson("DOT Studio workspace", `${studioUrl}/api/workspaces/${workspaceId}`);
-      studioWorkspace = {
-        id: workspaceId,
-        ok: workspace.ok,
-        performerCount: workspace.payload?.performers?.length || 0,
-        actCount: workspace.payload?.acts?.length || 0,
-      };
+      studioWorkspace = compactStudioWorkspace(workspaceId, workspace);
     }
     opencodeBridge = await checkHttpJson("DOT Studio OpenCode bridge", `${studioUrl}/api/opencode/health`);
     registry = await checkHttpJson("DOT Registry search", `${studioUrl}/api/dot/search?q=knolet&kind=dance&limit=1`);
@@ -561,6 +723,15 @@ async function diagnostics() {
     git,
     workspaceStatus,
     studioWorkspace,
+  });
+  const kindSummary = assetKindSummary(workspaceStatus.assets);
+  const readinessChecks = buildReadinessChecks({
+    workspaceStatus,
+    kindSummary,
+    studioWorkspace,
+    opencode,
+    opencodeChunk,
+    git,
   });
 
   return {
@@ -586,13 +757,9 @@ async function diagnostics() {
       officialAssets: workspaceStatus.officialAssets,
       studioWorkspace,
     },
-    ready:
-      workspaceStatus.workspaceExists &&
-      studio.ok &&
-      opencode.ok &&
-      (!studioWorkspace || studioWorkspace.performerCount > 0 || studioWorkspace.actCount > 0) &&
-      git.clean &&
-      git.syncedWithOrigin,
+    studioGuide: buildStudioGuide(studioWorkspace),
+    readinessChecks,
+    ready: readinessChecks.every((check) => check.ok),
     issues,
   };
 }
@@ -930,7 +1097,11 @@ async function route(request, response) {
 
 const server = http.createServer((request, response) => {
   route(request, response).catch((error) => {
-    send(response, 500, { error: error.message });
+    const translated = translateOperationalError(error.message);
+    send(response, 500, {
+      error: translated,
+      rawError: translated === error.message ? undefined : error.message,
+    });
   });
 });
 

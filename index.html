@@ -141,6 +141,72 @@
           </div>
         </section>
 
+        <section class="panel readiness-panel">
+          <div class="panel-heading">
+            <div>
+              <p class="label">실행 준비</p>
+              <h2>Manager가 자동으로 확인하는 체크리스트</h2>
+            </div>
+          </div>
+          <ul id="readinessChecklist" class="readiness-list">
+            <li data-ready="false">
+              <strong>상태 확인 중</strong>
+              <span>workspace, 부품, Studio, OpenCode, GitHub 상태를 읽고 있습니다.</span>
+            </li>
+          </ul>
+        </section>
+
+        <section class="guidance-grid">
+          <section class="panel">
+            <div class="panel-heading">
+              <div>
+                <p class="label">Studio 사용법</p>
+                <h2>현재 canvas 기준으로 무엇을 눌러야 하는지</h2>
+              </div>
+              <a class="link-button" href="http://127.0.0.1:43110" target="_blank" rel="noreferrer">
+                DOT Studio 열기
+              </a>
+            </div>
+            <div id="studioGuide" class="studio-guide">
+              <p class="empty">DOT Studio canvas 정보를 읽고 있습니다.</p>
+            </div>
+          </section>
+
+          <section class="panel">
+            <div class="panel-heading">
+              <div>
+                <p class="label">OpenCode 복구</p>
+                <h2>오류가 보일 때 바로 할 일</h2>
+              </div>
+            </div>
+            <div class="opencode-panel">
+              <article id="opencodeRecovery" class="recovery-status" data-state="unknown">
+                <strong>OpenCode 확인 중</strong>
+                <p>기본 URL과 session 화면 상태를 확인하고 있습니다.</p>
+              </article>
+              <div class="recovery-actions">
+                <a class="link-button" href="http://127.0.0.1:43120" target="_blank" rel="noreferrer">
+                  OpenCode 기본 URL 열기
+                </a>
+                <button id="recheckOpenCode" class="secondary" type="button">OpenCode 상태 재확인</button>
+                <button id="toggleOpenCodeGuide" class="secondary" type="button">
+                  session URL 문제 해결 안내 보기
+                </button>
+              </div>
+              <div id="openCodeGuide" class="plain-guide plain-guide--boxed" hidden>
+                <p>
+                  `/session` 주소에서 화면 파일 오류가 나면 오래된 실행 세션을 보고 있을 가능성이 큽니다.
+                  먼저 OpenCode 기본 URL을 열고, 브라우저에서 강력 새로고침을 실행하세요.
+                </p>
+                <p>
+                  그래도 실패하면 OpenCode 서버를 다시 시작한 뒤 DOT Studio를 다시 열면 됩니다.
+                  서버 재시작 버튼은 통합 런처 버전에서 추가할 예정입니다.
+                </p>
+              </div>
+            </div>
+          </section>
+        </section>
+
         <section class="panel overview-panel">
           <div class="panel-heading">
             <div>

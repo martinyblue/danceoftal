@@ -90,6 +90,12 @@ const elements = {
   diagnosticsGrid: document.querySelector("#diagnosticsGrid"),
   issueList: document.querySelector("#issueList"),
   diagnosticSummary: document.querySelector("#diagnosticSummary"),
+  readinessChecklist: document.querySelector("#readinessChecklist"),
+  studioGuide: document.querySelector("#studioGuide"),
+  opencodeRecovery: document.querySelector("#opencodeRecovery"),
+  recheckOpenCode: document.querySelector("#recheckOpenCode"),
+  toggleOpenCodeGuide: document.querySelector("#toggleOpenCodeGuide"),
+  openCodeGuide: document.querySelector("#openCodeGuide"),
   initWorkspace: document.querySelector("#initWorkspace"),
   seedWorkspace: document.querySelector("#seedWorkspace"),
   refreshWorkspace: document.querySelector("#refreshWorkspace"),
@@ -187,6 +193,77 @@ function serviceCard({ title, ok, state = ok ? "ok" : "error", detail }) {
   `;
 }
 
+function renderReadiness(checks) {
+  elements.readinessChecklist.innerHTML = "";
+  for (const check of checks || []) {
+    const item = document.createElement("li");
+    item.dataset.ready = check.ok ? "true" : "false";
+    item.innerHTML = `<strong>${check.label}</strong><span>${check.detail}</span>`;
+    elements.readinessChecklist.append(item);
+  }
+}
+
+function renderStudioGuide(guide) {
+  elements.studioGuide.innerHTML = "";
+  if (!guide?.available) {
+    elements.studioGuide.innerHTML = `
+      <p class="empty">DOT Studio canvas를 아직 읽지 못했습니다. Studio를 켠 뒤 상태를 다시 확인하세요.</p>
+    `;
+    return;
+  }
+
+  const performerItems = guide.performers.length
+    ? guide.performers
+        .map(
+          (performer) => `
+            <li>
+              <strong>${performer.name}</strong>
+              <span>${performer.talCount}개 Tal + ${performer.danceCount}개 Dance가 연결된 실행 에이전트입니다.</span>
+            </li>
+          `,
+        )
+        .join("")
+    : `<li><strong>Performer 없음</strong><span>Manager의 Studio 캔버스 배치를 먼저 누르세요.</span></li>`;
+
+  const actItems = guide.acts.length
+    ? guide.acts
+        .map(
+          (act) => `
+            <li>
+              <strong>${act.name}</strong>
+              <span>${act.participantNames.join(", ") || "Performer"}를 사용하는 workflow입니다.</span>
+            </li>
+          `,
+        )
+        .join("")
+    : `<li><strong>Act 없음</strong><span>workflow canvas 항목이 아직 없습니다.</span></li>`;
+
+  const stepItems = guide.steps.map((step) => `<li>${step}</li>`).join("");
+  elements.studioGuide.innerHTML = `
+    <div class="guide-columns">
+      <div>
+        <h3>canvas에서 보이는 것</h3>
+        <ul class="guide-list">${performerItems}${actItems}</ul>
+      </div>
+      <div>
+        <h3>DOT Studio에서 누를 순서</h3>
+        <ol class="numbered-guide">${stepItems}</ol>
+      </div>
+    </div>
+  `;
+}
+
+function renderOpenCodeRecovery(data) {
+  const opencodeOk = data.services.opencode.ok && data.services.opencodeChunk.ok;
+  elements.opencodeRecovery.dataset.state = opencodeOk ? "ok" : "warning";
+  elements.opencodeRecovery.querySelector("strong").textContent = opencodeOk
+    ? "OpenCode 연결됨"
+    : "OpenCode 확인 필요";
+  elements.opencodeRecovery.querySelector("p").textContent = opencodeOk
+    ? "기본 URL과 화면 파일이 정상으로 열립니다."
+    : "기본 URL을 다시 열고, 상태 재확인 후에도 실패하면 session URL 안내를 확인하세요.";
+}
+
 function renderDiagnostics(data) {
   elements.versionState.textContent = `v${data.version}`;
   elements.githubState.textContent = data.git.syncedWithOrigin
@@ -245,6 +322,10 @@ function renderDiagnostics(data) {
   elements.diagnosticSummary.textContent = data.ready
     ? "전체 상태가 정상입니다. DOT Studio에서 canvas를 보고 OpenCode 실행 테스트를 진행해도 됩니다."
     : "확인할 일이 있습니다. 위 목록의 항목부터 처리하면 됩니다.";
+
+  renderReadiness(data.readinessChecks);
+  renderStudioGuide(data.studioGuide);
+  renderOpenCodeRecovery(data);
 }
 
 function renderCanvas(assets) {
@@ -485,6 +566,15 @@ elements.refreshWorkspace.addEventListener("click", () =>
 elements.runDiagnostics.addEventListener("click", () =>
   runAction(elements.runDiagnostics, runDiagnostics),
 );
+elements.recheckOpenCode.addEventListener("click", () =>
+  runAction(elements.recheckOpenCode, runDiagnostics),
+);
+elements.toggleOpenCodeGuide.addEventListener("click", () => {
+  elements.openCodeGuide.hidden = !elements.openCodeGuide.hidden;
+  elements.toggleOpenCodeGuide.textContent = elements.openCodeGuide.hidden
+    ? "session URL 문제 해결 안내 보기"
+    : "session URL 문제 해결 안내 닫기";
+});
 elements.seedStudio.addEventListener("click", () =>
   runAction(elements.seedStudio, seedStudioCanvas),
 );

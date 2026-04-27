@@ -318,6 +318,135 @@ textarea {
   line-height: 1.7;
 }
 
+.plain-guide--boxed {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface-2);
+}
+
+.guidance-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.25fr) minmax(320px, 0.75fr);
+  gap: 16px;
+}
+
+.readiness-list,
+.guide-list,
+.numbered-guide {
+  margin: 0;
+}
+
+.readiness-list {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1px;
+  padding: 16px;
+  background: var(--line);
+  list-style: none;
+}
+
+.readiness-list li {
+  display: grid;
+  gap: 6px;
+  min-height: 108px;
+  padding: 13px;
+  background: var(--surface);
+}
+
+.readiness-list li::before {
+  content: "";
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--accent-2);
+}
+
+.readiness-list li[data-ready="true"]::before {
+  background: var(--accent);
+}
+
+.readiness-list strong,
+.guide-list strong {
+  color: var(--ink);
+}
+
+.readiness-list span,
+.guide-list span {
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.studio-guide {
+  padding: 16px;
+}
+
+.guide-columns {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 0.92fr);
+  gap: 18px;
+}
+
+.guide-columns h3 {
+  margin: 0 0 10px;
+  font-size: 0.95rem;
+}
+
+.guide-list {
+  display: grid;
+  gap: 8px;
+  padding: 0;
+  list-style: none;
+}
+
+.guide-list li {
+  display: grid;
+  gap: 4px;
+  padding: 11px 12px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+
+.numbered-guide {
+  display: grid;
+  gap: 8px;
+  padding-left: 24px;
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+.opencode-panel {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+}
+
+.recovery-status {
+  display: grid;
+  gap: 6px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+
+.recovery-status[data-state="ok"] {
+  border-color: rgba(36, 90, 70, 0.45);
+}
+
+.recovery-status[data-state="warning"] {
+  border-color: rgba(183, 120, 22, 0.55);
+}
+
+.recovery-status p {
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+.recovery-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
 .diagnostics-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -588,6 +717,9 @@ code {
 @media (max-width: 980px) {
   .shell,
   .grid-two,
+  .guidance-grid,
+  .guide-columns,
+  .readiness-list,
   .diagnostics-grid,
   .diagnostics-body,
   .workflow-canvas,
