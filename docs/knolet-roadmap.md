@@ -1,0 +1,337 @@
+# Knolet Roadmap
+
+This roadmap upgrades the project direction from a local `dance-of-tal` manager
+into a Knolet-oriented knowledge workflow app builder.
+
+Core framing:
+
+```text
+dance-of-tal = lower-level agent package and choreography structure
+Knolet       = product grammar for domain knowledge workflow apps
+```
+
+Knolet should wrap DOT assets instead of exposing them as the primary product
+model. Users should work with personas, skills, runtime workers, knowledge
+sources, workflows, evaluation, and app outputs.
+
+## Concept Mapping
+
+- `Tal` -> `Persona`
+  A domain role with authority, tone, constraints, evidence rules, and
+  uncertainty behavior.
+- `Dance` -> `SkillBlock`
+  A reusable skill with triggers, knowledge bindings, and an explicit output
+  contract.
+- `Performer` -> `RuntimeAgent` / `Worker`
+  A runnable work unit with persona, skills, model, tools, source permissions,
+  memory scope, validation, and run logs.
+- `Act` -> `Workflow` / `Knowledge Choreography`
+  A graph that defines participants, relations, source flow, approval,
+  evaluation, and final app output.
+- `DOT Studio` -> `Knolet Studio`
+  A knowledge app builder with source, skill, agent, evaluation, approval, and
+  output nodes.
+- `dot` CLI -> Knolet importer/exporter/registry/runtime compiler.
+
+## KnoletSpec v0.1
+
+`KnoletSpec` is the normalized boundary between imported DOT assets and a
+Knolet app.
+
+Required top-level sections:
+
+```text
+metadata
+domain
+knowledge
+personas
+skills
+agents
+workflow
+app
+evaluation
+```
+
+Minimal shape:
+
+```yaml
+knolet_spec_version: 0.1
+metadata:
+  id: knolet://workspace/domain/stage/name
+  name: Contract Risk Review App
+  owner: team-legal-ops
+  stage: mvp
+  source:
+    kind: dance-of-tal
+    dot_assets:
+      - tal/@legal/mvp/compliance-reviewer
+      - dance/@legal/mvp/contract-risk
+      - performer/@legal/mvp/risk-reviewer
+      - act/@legal/mvp/contract-review-flow
+domain:
+  name: legal_ops
+  object_types:
+    - contract
+    - clause
+    - policy
+knowledge:
+  sources:
+    - id: uploaded_contract
+      type: user_uploaded_document
+      required: true
+  grounding_policy:
+    require_citations: true
+    allow_uncited_recommendations: false
+    uncertainty_required: true
+personas:
+  - id: persona.compliance_reviewer
+    from_dot_tal: tal/@legal/mvp/compliance-reviewer
+    role: Evidence-based legal operations reviewer
+skills:
+  - id: skill.contract_risk_review
+    from_dot_dance: dance/@legal/mvp/contract-risk
+    binds_to:
+      - uploaded_contract
+    output_schema: risk_finding_list
+agents:
+  - id: agent.risk_reviewer
+    from_dot_performer: performer/@legal/mvp/risk-reviewer
+    persona: persona.compliance_reviewer
+    skills:
+      - skill.contract_risk_review
+workflow:
+  id: workflow.contract_review
+  from_dot_act: act/@legal/mvp/contract-review-flow
+  nodes:
+    - agent.risk_reviewer
+  edges:
+    - from: agent.risk_reviewer
+      to: agent.report_writer
+      direction: one-way
+app:
+  input_ui:
+    type: upload_plus_form
+  output_ui:
+    type: structured_report
+evaluation:
+  checks:
+    - citations_exist
+    - output_schema_valid
+```
+
+## Phase 1: Compatibility MVP
+
+Goal: import a `.dance-of-tal/` workspace and generate a valid `KnoletSpec`.
+
+Scope:
+
+- workspace scanner for `.dance-of-tal/`
+- Tal/Dance/Performer/Act parser
+- DOT raw asset diagnostics
+- `KnoletSpec v0.1` schema
+- DOT-to-Knolet mapper
+- warnings for missing knowledge bindings
+- fixtures and validation tests
+
+Done when:
+
+- a sample workspace imports into `KnoletSpec`
+- at least one Tal, Dance, Performer, and Act maps successfully
+- invalid relation directions fail validation
+- missing knowledge bindings are warnings, not fatal errors
+- generated JSON/YAML can be saved for review
+
+Suggested version: `0.3.0`.
+
+## Phase 2: Import Preview and Editing
+
+Goal: make the importer usable from the Manager.
+
+Scope:
+
+- `Import from dance-of-tal` action
+- mapped asset preview
+- diagnostics panel
+- editable knowledge binding placeholders
+- save `knolet.json` or `knolet.yaml`
+
+Done when:
+
+- imported assets are previewed before saving
+- diagnostics explain missing or invalid assets
+- users can add knowledge source placeholders
+- the saved spec passes validation
+
+Suggested version: `0.3.1`.
+
+## Phase 3: Knowledge Binding and Citation Validation
+
+Goal: make Knolet knowledge-grounded rather than just agent-driven.
+
+Scope:
+
+- `KnowledgeSource`
+- `KnowledgeBinding`
+- source access permissions
+- `citation_required`
+- simple citation shape: `{source_id, locator, quote?}`
+- output citation validation
+
+Done when:
+
+- SkillBlocks can declare required sources
+- RuntimeAgents can allow or deny sources
+- a workflow run fails validation when required citations are missing
+- a workflow run passes when required citations are present
+
+Suggested version: `0.3.2`.
+
+## Phase 4: Workflow Runtime Interface
+
+Goal: compile workflow participants and relations into an executable plan.
+
+Scope:
+
+- workflow participant validation
+- relation direction enforcement: `one-way` and `both`
+- node/edge diagnostics
+- run log interface
+- output schema validation hook
+
+Done when:
+
+- invalid participant references fail validation
+- one-way relations do not allow reverse message passing
+- both relations allow bidirectional exchange
+- each step records input, output, and diagnostics
+
+Suggested version: `0.3.3`.
+
+## Phase 5: Knolet Studio Graph Model
+
+Goal: prepare the domain graph before visual UI work.
+
+Node types:
+
+- source
+- skill
+- persona
+- agent
+- workflow_step
+- evaluation
+- human_approval
+- output
+
+Edge types:
+
+- uses_knowledge
+- invokes_skill
+- delegates_to
+- verifies
+- produces_output
+- requires_approval
+
+Done when:
+
+- `KnoletSpec -> Graph` conversion exists
+- `Graph -> KnoletSpec` conversion exists
+- imported DOT Act can be represented as a Knolet workflow graph
+- graph nodes reference the underlying KnoletSpec entities
+
+Suggested version: `0.3.4`.
+
+## Phase 6: Library and Sharing
+
+Goal: convert DOT registry ideas into a Knolet Library.
+
+Asset types:
+
+- Persona Template
+- Skill Block
+- Agent Profile
+- Workflow Template
+- Knowledge App Template
+- Evaluation Pack
+- UI Output Template
+
+Done when:
+
+- templates can be published and installed
+- dependency and version views exist
+- fork/share boundaries are explicit
+- source documents are managed by pointer/binding, not copied into templates
+
+Suggested version: `0.4.0`.
+
+## Phase 7: Product Backend
+
+Goal: prepare for real commercial use.
+
+Scope:
+
+- product-owned auth
+- server-backed workspace storage
+- source binding storage
+- run log storage
+- team workspace permissions
+- publish flow governance
+
+Done when:
+
+- production mode blocks unsafe local defaults
+- customer data does not depend on upstream DOT auth or local-only storage
+- workflow execution logs and source bindings are controlled by product-owned
+  infrastructure
+
+Suggested version: `0.5.0`.
+
+## Codex Implementation Prompt Shape
+
+Use this structure for implementation tasks:
+
+```text
+Goal:
+Implement the next Knolet compatibility layer milestone.
+
+Context:
+Knolet wraps dance-of-tal assets:
+- Tal -> Persona
+- Dance -> SkillBlock
+- Performer -> RuntimeAgent
+- Act -> Workflow
+
+Constraints:
+- Inspect the repo first.
+- Keep DOT terminology in adapter/importer code only.
+- Use Knolet terms internally.
+- Preserve backward compatibility.
+- Add fixtures and validation tests for parser/mapper work.
+
+Done when:
+- A sample .dance-of-tal fixture imports into a valid KnoletSpec.
+- Missing knowledge bindings are warnings.
+- Invalid relation directions fail validation.
+- Docs show DOT assets becoming a Knolet app.
+```
+
+## Product Message
+
+```text
+Knolet turns reusable agent packages into grounded, executable knowledge apps.
+```
+
+Korean:
+
+```text
+dance-of-tal이 agent를 조립하는 방식이라면,
+Knolet은 그 agent 조립물을 지식 기반 업무 앱으로 실행 가능하게 만드는 방식이다.
+```
+
+## Reference Links
+
+- dance-of-tal: https://github.com/dance-of-tal/dance-of-tal
+- dot-studio: https://github.com/dance-of-tal/dot-studio
+- DOT website: https://danceoftal.com/
+- OpenAI Codex Skills: https://developers.openai.com/codex/skills
+- OpenAI Codex CLI: https://developers.openai.com/codex/cli
+- OpenAI Codex best practices: https://developers.openai.com/codex/learn/best-practices

@@ -1,6 +1,6 @@
 # dance-of-tal Local Manager
 
-Version: `0.2.6`
+Version: `0.2.7`
 
 This repository contains a local-first manager for `dance-of-tal` style assets.
 It is built for the project owner, not first-time visitors. The local UI creates
@@ -157,6 +157,56 @@ dot-studio doctor . --verbose
 - preview generated JSON and `SKILL.md` files
 - inspect official `dot install` assets under `.dance-of-tal/assets/`
 
+## Knolet Product Direction
+
+Knolet should not clone `dance-of-tal`. This repository treats `dance-of-tal`
+as the lower-level agent packaging and choreography layer, then adds a Knolet
+product grammar for domain knowledge, source grounding, workflow validation,
+UI generation, and reusable business apps.
+
+Product message:
+
+```text
+Knolet turns reusable agent packages into grounded, executable knowledge apps.
+```
+
+Mapping:
+
+- `Tal` -> Knolet `Persona`: a domain role, not just style or voice
+- `Dance` -> Knolet `SkillBlock`: a skill plus knowledge bindings and an
+  output contract
+- `Performer` -> Knolet `RuntimeAgent` / `Worker`: a runnable work unit with
+  model, tools, source permissions, validation, and logs
+- `Act` -> Knolet `Workflow` / `Knowledge Choreography`: a graph of agents,
+  source flow, approvals, evaluation, and final app output
+- `DOT Studio` -> Knolet Studio / Knowledge App Builder
+- `dot` CLI -> Knolet importer, exporter, registry, and runtime compiler
+
+Implementation principles:
+
+- Keep `dance-of-tal` terminology at the adapter/importer boundary. Internal
+  product models should use `Persona`, `SkillBlock`, `RuntimeAgent`,
+  `Workflow`, `KnowledgeSource`, `Evaluation`, and `App`.
+- Every `SkillBlock` should say what knowledge it uses and what structured
+  output it must produce.
+- Every `RuntimeAgent` should define input shape, output shape, allowed sources,
+  denied sources, domain constraints, validation rules, and run logs.
+- Workflow edges are product behavior: they define which output becomes which
+  input, whether an exchange is one-way or bidirectional, and where citation,
+  evaluation, or human approval is required.
+- A Knolet app is not complete until it defines input UI, output UI, grounding
+  policy, evaluation checks, and version/fork/share boundaries.
+
+The target normalized format is `KnoletSpec v0.1`:
+
+```text
+metadata -> domain -> knowledge -> personas -> skills -> agents -> workflow
+         -> app -> evaluation
+```
+
+See [docs/knolet-roadmap.md](docs/knolet-roadmap.md) for the full development
+plan and milestone map.
+
 ## Operator Flow
 
 Use the Manager at <http://127.0.0.1:8080> in this order:
@@ -222,6 +272,44 @@ Recommended switch-over sequence:
 5. Only then route customer login, workspace data, execution logs, and publish
    flows to the product-owned backend.
 
+## Development Roadmap
+
+The next development line is `0.3.x`: add the Knolet compatibility layer on top
+of the current local Manager, DOT Studio, OpenCode, and Registry foundation.
+
+- `0.2.7`: document the Knolet product direction, DOT-to-Knolet mapping, and
+  full roadmap before implementation begins.
+- `0.3.0` Compatibility MVP: add `KnoletSpec v0.1`, scan `.dance-of-tal/`, parse
+  Tal/Dance/Performer/Act assets, map them to Persona/SkillBlock/RuntimeAgent/
+  Workflow, and report diagnostics for missing knowledge bindings.
+- `0.3.1` Import Preview: add a Manager UI/API flow for `Import from
+  dance-of-tal`, preview mapped assets, and save `knolet.json` or `knolet.yaml`.
+- `0.3.2` Knowledge Binding: model KnowledgeSource, KnowledgeBinding,
+  citation-required outputs, allowed/denied source access, and validation
+  warnings.
+- `0.3.3` Workflow Runtime Interface: compile workflow participants and
+  one-way/both relations into an executable plan with run logs and validation
+  diagnostics.
+- `0.3.4` Knolet Studio Graph Model: prepare Source, Skill, Persona, Agent,
+  Workflow Step, Evaluation, Human Approval, and Output nodes for a future
+  visual builder.
+- `0.4.0` Library and Sharing: turn DOT registry concepts into Knolet Library
+  templates for SkillBlocks, AgentProfiles, WorkflowTemplates, EvaluationPacks,
+  and Knowledge App Templates.
+- `0.5.0` Product Backend: move customer auth, workspace data, source bindings,
+  run logs, and publish flows from local-first storage to product-owned
+  infrastructure.
+
+Immediate implementation order for `0.3.0`:
+
+1. Add schema and validation helpers for `KnoletSpec v0.1`.
+2. Add DOT raw workspace scanner and parser with non-fatal diagnostics.
+3. Add mapping functions from DOT assets to Knolet normalized entities.
+4. Add valid and invalid fixtures.
+5. Add tests for schema validation, missing directories, invalid relation
+   direction, and missing knowledge binding warnings.
+6. Add docs showing before/after examples from DOT assets to a Knolet app.
+
 ## Troubleshooting
 
 For registry installs, use `설치 전 확인` before `현재 workspace에 설치`.
@@ -249,6 +337,8 @@ a package version bump plus a Git commit pushed to `martinyblue/danceoftal`.
 
 ## Version Notes
 
+- `0.2.7`: added the Knolet product direction and full milestone roadmap for
+  wrapping DOT assets as grounded, executable knowledge apps.
 - `0.2.6`: made the DOT Studio npm script non-interactive so npm update prompts
   cannot block local Studio startup.
 - `0.2.5`: changed the OpenCode npm script from the old absolute Desktop path
