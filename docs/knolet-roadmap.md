@@ -172,7 +172,7 @@ Done when:
 - users can add knowledge source placeholders
 - the saved spec passes validation
 
-Suggested version: `0.3.1`.
+Suggested version: `0.3.2`.
 
 ## Phase 3: Knowledge Binding and Citation Validation
 
@@ -194,7 +194,7 @@ Done when:
 - a workflow run fails validation when required citations are missing
 - a workflow run passes when required citations are present
 
-Suggested version: `0.3.2`.
+Suggested version: `0.3.3`.
 
 ## Phase 4: Workflow Runtime Interface
 
@@ -215,7 +215,7 @@ Done when:
 - both relations allow bidirectional exchange
 - each step records input, output, and diagnostics
 
-Suggested version: `0.3.3`.
+Suggested version: `0.3.4`.
 
 ## Phase 5: Knolet Studio Graph Model
 
@@ -248,7 +248,7 @@ Done when:
 - imported DOT Act can be represented as a Knolet workflow graph
 - graph nodes reference the underlying KnoletSpec entities
 
-Suggested version: `0.3.4`.
+Suggested version: `0.3.5`.
 
 ## Phase 6: Library and Sharing
 

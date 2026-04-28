@@ -1,6 +1,6 @@
 # dance-of-tal Local Manager
 
-Version: `0.3.0`
+Version: `0.3.1`
 
 This repository contains a local-first manager for `dance-of-tal` style assets.
 It is built for the project owner, not first-time visitors. The local UI creates
@@ -33,6 +33,15 @@ Useful local URLs:
 - Manager: <http://127.0.0.1:8080>
 - DOT Studio: <http://127.0.0.1:43110>
 - OpenCode: <http://127.0.0.1:43120>
+
+To start the full local stack with the repository's 1-hour shutdown policy:
+
+```bash
+PATH=/tmp/node-v22.11.0-darwin-arm64/bin:$PATH npm run local:stack
+```
+
+Use this after each completed development unit. It starts Manager, DOT Studio,
+and OpenCode together, then stops all three after one hour.
 
 If DOT Studio is reinstalled under `.tools/`, reapply the local canvas patch
 before starting Studio:
@@ -300,15 +309,18 @@ of the current local Manager, DOT Studio, OpenCode, and Registry foundation.
   Tal/Dance/Performer/Act parsing, Persona/SkillBlock/RuntimeAgent/Workflow
   mapping, importer diagnostics, fixtures, tests, CLI export, and Manager API
   inspection.
-- `0.3.1` Import Preview: add a Manager UI/API flow for `Import from
+- `0.3.1` Local Stack Lifecycle: add a full-stack runner and repo instruction
+  policy so Manager, DOT Studio, and OpenCode start together after each
+  development unit and stop together after one hour.
+- `0.3.2` Import Preview: add a Manager UI/API flow for `Import from
   dance-of-tal`, preview mapped assets, and save `knolet.json` or `knolet.yaml`.
-- `0.3.2` Knowledge Binding: model KnowledgeSource, KnowledgeBinding,
+- `0.3.3` Knowledge Binding: model KnowledgeSource, KnowledgeBinding,
   citation-required outputs, allowed/denied source access, and validation
   warnings.
-- `0.3.3` Workflow Runtime Interface: compile workflow participants and
+- `0.3.4` Workflow Runtime Interface: compile workflow participants and
   one-way/both relations into an executable plan with run logs and validation
   diagnostics.
-- `0.3.4` Knolet Studio Graph Model: prepare Source, Skill, Persona, Agent,
+- `0.3.5` Knolet Studio Graph Model: prepare Source, Skill, Persona, Agent,
   Workflow Step, Evaluation, Human Approval, and Output nodes for a future
   visual builder.
 - `0.4.0` Library and Sharing: turn DOT registry concepts into Knolet Library
@@ -355,6 +367,9 @@ a package version bump plus a Git commit pushed to `martinyblue/danceoftal`.
 
 ## Version Notes
 
+- `0.3.1`: added the full local stack runner and repo instruction update so
+  Manager, DOT Studio, and OpenCode are started together after each development
+  unit and stopped together after one hour.
 - `0.3.0`: added the KnoletSpec compatibility MVP with DOT workspace scanner,
   DOT-to-Knolet mapper, schema validation, diagnostics, fixtures, tests, CLI
   export, and Manager API import inspection.
