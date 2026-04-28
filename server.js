@@ -1271,6 +1271,51 @@ function diagnosticHelp(item) {
   };
 }
 
+async function readPersistedKnoletBindings() {
+  try {
+    const spec = JSON.parse(await fs.readFile(knoletWorkspaceSpecPath, "utf8"));
+    const skillBindings = {};
+    for (const skill of Array.isArray(spec.skills) ? spec.skills : []) {
+      if (skill?.id && Array.isArray(skill.binds_to)) {
+        skillBindings[skill.id] = skill.binds_to;
+      }
+    }
+    return {
+      knowledgeSources: spec.knowledge?.sources || [],
+      skillBindings,
+    };
+  } catch {
+    return {
+      knowledgeSources: [],
+      skillBindings: {},
+    };
+  }
+}
+
+function mergeKnowledgeBindingOptions(base, patch = {}) {
+  const sourcesById = new Map();
+  for (const source of [...(base.knowledgeSources || []), ...(patch.knowledgeSources || [])]) {
+    if (source?.id) {
+      sourcesById.set(source.id, source);
+    }
+  }
+  return {
+    knowledgeSources: [...sourcesById.values()],
+    skillBindings: {
+      ...(base.skillBindings || {}),
+      ...(patch.skillBindings || {}),
+    },
+  };
+}
+
+async function resolveKnowledgeBindingOptions(payload = {}) {
+  const persisted = await readPersistedKnoletBindings();
+  return mergeKnowledgeBindingOptions(persisted, {
+    knowledgeSources: Array.isArray(payload.knowledgeSources) ? payload.knowledgeSources : [],
+    skillBindings: payload.skillBindings && typeof payload.skillBindings === "object" ? payload.skillBindings : {},
+  });
+}
+
 function summarizeImportResult(result, workspacePath) {
   const spec = result.spec || {};
   const workflow = spec.workflow || {};
@@ -1284,6 +1329,7 @@ function summarizeImportResult(result, workspacePath) {
   const unboundSkills = Array.isArray(spec.skills)
     ? spec.skills.filter((skill) => !Array.isArray(skill.binds_to) || skill.binds_to.length === 0)
     : [];
+  const boundSkillCount = Array.isArray(spec.skills) ? spec.skills.length - unboundSkills.length : 0;
   const assetsByKind = {};
   for (const asset of result.assets || []) {
     assetsByKind[asset.kind] ||= [];
@@ -1311,16 +1357,18 @@ function summarizeImportResult(result, workspacePath) {
       errorCount: errors.length,
       warningCount: warnings.length,
       missingKnowledgeBindingCount: unboundSkills.length || missingBindings.length,
+      boundSkillCount,
+      bindingComplete: unboundSkills.length === 0,
     },
     nextSteps: [
       {
         key: "knowledge-binding",
         label: "0.3.3 Knowledge Binding",
-        required: missingBindings.length > 0,
+        required: unboundSkills.length > 0 || missingBindings.length > 0,
         detail:
-          missingBindings.length > 0
+          unboundSkills.length > 0 || missingBindings.length > 0
             ? `${unboundSkills.length || missingBindings.length}개 SkillBlock에 KnowledgeSource 연결이 필요합니다.`
-            : "현재 import preview에서는 추가 KnowledgeSource warning이 없습니다.",
+            : "모든 SkillBlock이 KnowledgeSource에 연결되어 있습니다.",
       },
       {
         key: "knowledge-source",
@@ -1338,8 +1386,9 @@ function summarizeImportResult(result, workspacePath) {
   };
 }
 
-async function importDotWorkspacePreview(workspacePath) {
-  const result = await importDotWorkspace(workspacePath);
+async function importDotWorkspacePreview(workspacePath, payload = {}) {
+  const bindingOptions = await resolveKnowledgeBindingOptions(payload);
+  const result = await importDotWorkspace(workspacePath, bindingOptions);
   return summarizeImportResult(result, workspacePath);
 }
 
@@ -1356,7 +1405,7 @@ function resolveKnoletSaveTarget(target) {
 async function saveKnoletImport(payload = {}) {
   const workspacePath = resolveWorkspaceInput(payload.path || ".dance-of-tal");
   const targetPath = resolveKnoletSaveTarget(payload.target || "workspace");
-  const preview = await importDotWorkspacePreview(workspacePath);
+  const preview = await importDotWorkspacePreview(workspacePath, payload);
   await fs.mkdir(path.dirname(targetPath), { recursive: true });
   await fs.writeFile(targetPath, `${JSON.stringify(preview.spec, null, 2)}\n`);
   return {
@@ -2032,7 +2081,7 @@ async function route(request, response) {
   if (url.pathname === "/api/knolet/import/dot" && request.method === "POST") {
     const payload = await parseBody(request);
     const workspacePath = resolveWorkspaceInput(payload.path || ".dance-of-tal");
-    send(response, 200, await importDotWorkspacePreview(workspacePath));
+    send(response, 200, await importDotWorkspacePreview(workspacePath, payload));
     return;
   }
 

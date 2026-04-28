@@ -29,6 +29,39 @@ test("reports missing knowledge bindings as warnings", async () => {
   assert.equal(warnings[0].level, "warning");
 });
 
+test("applies knowledge bindings during import", async () => {
+  const result = await importDotWorkspace(fixtureRoot, {
+    knowledgeSources: [
+      {
+        id: "contract_repository",
+        type: "workspace_document",
+        label: "Contract repository",
+        required: true,
+      },
+    ],
+    skillBindings: {
+      "skill.contract-risk": ["contract_repository"],
+    },
+  });
+  const bindingWarnings = result.diagnostics.filter((item) => item.code === "missing-knowledge-binding");
+
+  assert.equal(result.validation.ok, true);
+  assert.equal(result.spec.skills[0].binds_to[0], "contract_repository");
+  assert.equal(result.spec.knowledge.sources.some((source) => source.id === "contract_repository"), true);
+  assert.equal(bindingWarnings.length, 0);
+});
+
+test("unknown knowledge source bindings fail validation", async () => {
+  const result = await importDotWorkspace(fixtureRoot, {
+    skillBindings: {
+      "skill.contract-risk": ["missing_source"],
+    },
+  });
+
+  assert.equal(result.validation.ok, false);
+  assert.ok(result.validation.errors.some((error) => error.code === "unknown-knowledge-source"));
+});
+
 test("invalid workflow relation directions fail validation", async () => {
   const result = await importDotWorkspace(fixtureRoot);
   const spec = structuredClone(result.spec);

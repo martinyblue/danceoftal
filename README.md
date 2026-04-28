@@ -236,9 +236,10 @@ curl -s http://127.0.0.1:8080/api/knolet/import/dot
 The Manager now includes `Knolet Import Preview`, which imports `.dance-of-tal/`
 with one button, summarizes Persona/SkillBlock/RuntimeAgent/workflow counts,
 groups diagnostics by `error` and `warning`, highlights
-`missing-knowledge-binding` as the handoff to `0.3.3 Knowledge Binding`, and can
-save the current preview to `.dance-of-tal/knolet.json` or repo-root
-`knolet.json`.
+`missing-knowledge-binding`, lets each SkillBlock bind to a KnowledgeSource, and
+can save the current preview to `.dance-of-tal/knolet.json` or repo-root
+`knolet.json`. Supported source types are `workspace_document`, `uploaded_file`,
+`registry_asset`, and `manual_note`.
 
 ## Operator Flow
 
@@ -252,14 +253,15 @@ Use the Manager at <http://127.0.0.1:8080> in this order:
 5. Review `Knolet workflow` to see the required inputs, outputs, and acceptance
    criteria for each app-generation phase.
 6. Use `Knolet Import Preview` to convert the current `.dance-of-tal/` workspace
-   into a validated KnoletSpec preview and save `knolet.json` when it looks
-   right.
-7. Use the generated OpenCode handoff prompt as the starting point for a real
+   into a validated KnoletSpec preview.
+7. In `Knowledge Binding`, connect each SkillBlock to `workspace_documents` or a
+   new KnowledgeSource, then save `knolet.json` when validation looks right.
+8. Use the generated OpenCode handoff prompt as the starting point for a real
    `Document to Knolet App` run.
-8. Save the run inputs and captured outputs in `Workflow 산출물 저장`.
-9. Run `품질 검토` to catch missing or underdeveloped workflow outputs.
-10. Use `공유 패키지 만들기` to produce a Markdown handoff package.
-11. Use `0.2.0 통합 런처` as the starting point for DOT Studio, OpenCode,
+9. Save the run inputs and captured outputs in `Workflow 산출물 저장`.
+10. Run `품질 검토` to catch missing or underdeveloped workflow outputs.
+11. Use `공유 패키지 만들기` to produce a Markdown handoff package.
+12. Use `0.2.0 통합 런처` as the starting point for DOT Studio, OpenCode,
     Registry, and GitHub status checks.
 
 The Manager is a custom local operator UI for this repository. The official
@@ -325,9 +327,9 @@ of the current local Manager, DOT Studio, OpenCode, and Registry foundation.
 - `0.3.2` Import Preview: added a Manager UI/API flow for `Import from
   dance-of-tal`, mapped asset preview, human-readable diagnostics, Knowledge
   Binding handoff notes, and `knolet.json` saving.
-- `0.3.3` Knowledge Binding: model KnowledgeSource, KnowledgeBinding,
-  citation-required outputs, allowed/denied source access, and validation
-  warnings.
+- `0.3.3` Knowledge Binding: added KnowledgeSource types, SkillBlock
+  `binds_to` editing, persisted binding-aware imports, and validation for
+  unknown or incomplete knowledge source references.
 - `0.3.4` Workflow Runtime Interface: compile workflow participants and
   one-way/both relations into an executable plan with run logs and validation
   diagnostics.
@@ -378,6 +380,9 @@ a package version bump plus a Git commit pushed to `martinyblue/danceoftal`.
 
 ## Version Notes
 
+- `0.3.3`: added Manager Knowledge Binding controls, import/save support for
+  `knowledge.sources` and `skills[].binds_to`, binding completion summaries, and
+  validation errors for unknown KnowledgeSource references.
 - `0.3.2`: added the Manager `Knolet Import Preview` section, import summaries,
   error/warning diagnostic grouping, explicit `missing-knowledge-binding`
   guidance, and save support for `.dance-of-tal/knolet.json` or repo-root

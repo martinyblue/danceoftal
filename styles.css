@@ -488,6 +488,63 @@ textarea {
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
+.binding-status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid rgba(142, 63, 50, 0.45);
+  border-radius: 6px;
+}
+
+.binding-status[data-complete="true"] {
+  border-color: rgba(36, 90, 70, 0.4);
+}
+
+.binding-status span,
+.knowledge-source-card span,
+.skill-binding-row span {
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.knowledge-source-grid,
+.skill-binding-list {
+  display: grid;
+  gap: 8px;
+}
+
+.knowledge-source-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.knowledge-source-card,
+.skill-binding-row {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+
+.knowledge-source-card p {
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.knowledge-source-form {
+  display: grid;
+  grid-template-columns: minmax(160px, 1fr) 180px minmax(180px, 1fr) auto;
+  gap: 8px;
+  align-items: end;
+}
+
+.skill-binding-row {
+  grid-template-columns: minmax(220px, 1.4fr) minmax(180px, 0.8fr) auto auto auto;
+  align-items: center;
+}
+
 .import-asset-group {
   display: grid;
   gap: 8px;
@@ -1319,6 +1376,9 @@ code {
   .run-output-grid,
   .import-summary-grid,
   .import-assets,
+  .knowledge-source-grid,
+  .knowledge-source-form,
+  .skill-binding-row,
   .diagnostic-columns,
   .diagnostics-grid,
   .diagnostics-body,

@@ -2,6 +2,7 @@ const state = {
   assets: [],
   currentRun: null,
   lastImportPreview: null,
+  bindingDraft: null,
 };
 
 const templates = {
@@ -246,6 +247,15 @@ function formatDuration(ms) {
     return `${hours}시간 ${minutes}분`;
   }
   return `${minutes}분`;
+}
+
+function slugInput(value, fallback = "source") {
+  return String(value || fallback)
+    .trim()
+    .replace(/^@/, "")
+    .replace(/[^a-zA-Z0-9._-]+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .toLowerCase() || fallback;
 }
 
 function renderReadiness(checks) {
@@ -616,8 +626,100 @@ function assetGroup(title, assets) {
   `;
 }
 
+function bindingDraftFromSpec(spec) {
+  const skillBindings = {};
+  for (const skill of spec?.skills || []) {
+    skillBindings[skill.id] = Array.isArray(skill.binds_to) ? skill.binds_to : [];
+  }
+  return {
+    knowledgeSources: spec?.knowledge?.sources || [],
+    skillBindings,
+  };
+}
+
+function bindingPayload() {
+  return state.bindingDraft
+    ? {
+        knowledgeSources: state.bindingDraft.knowledgeSources,
+        skillBindings: state.bindingDraft.skillBindings,
+      }
+    : {};
+}
+
+function sourceOption(source, selectedIds) {
+  const selected = selectedIds.includes(source.id) ? "selected" : "";
+  return `<option value="${escapeHtml(source.id)}" ${selected}>${escapeHtml(source.label || source.id)}</option>`;
+}
+
+function renderBindingEditor(preview) {
+  const spec = preview.spec || {};
+  const sources = spec.knowledge?.sources || [];
+  const skills = spec.skills || [];
+  const sourceCards = sources
+    .map(
+      (source) => `
+        <article class="knowledge-source-card">
+          <strong>${escapeHtml(source.label || source.id)}</strong>
+          <span>${escapeHtml(source.type || "manual_note")} / ${escapeHtml(source.id)}</span>
+          ${source.description ? `<p>${escapeHtml(source.description)}</p>` : ""}
+        </article>
+      `,
+    )
+    .join("");
+  const skillRows = skills
+    .map((skill) => {
+      const selectedIds = Array.isArray(skill.binds_to) ? skill.binds_to : [];
+      const selectedText = selectedIds.length ? selectedIds.join(", ") : "연결 없음";
+      return `
+        <article class="skill-binding-row">
+          <div>
+            <strong>${escapeHtml(skill.name || skill.id)}</strong>
+            <span>${escapeHtml(skill.id)} / ${escapeHtml(selectedText)}</span>
+          </div>
+          <select data-binding-select="${escapeHtml(skill.id)}" aria-label="${escapeHtml(skill.id)} KnowledgeSource 선택">
+            ${sources.map((source) => sourceOption(source, selectedIds)).join("")}
+          </select>
+          <button class="secondary" type="button" data-bind-source="${escapeHtml(skill.id)}">선택 source 연결</button>
+          <button class="secondary" type="button" data-bind-workspace="${escapeHtml(skill.id)}">workspace_documents 연결</button>
+          <button class="secondary" type="button" data-unbind-source="${escapeHtml(skill.id)}">연결 해제</button>
+        </article>
+      `;
+    })
+    .join("");
+
+  return `
+    <div class="binding-status" data-complete="${preview.summary?.bindingComplete ? "true" : "false"}">
+      <strong>${preview.summary?.bindingComplete ? "Knowledge Binding 완료" : "Knowledge Binding 필요"}</strong>
+      <span>${preview.summary?.boundSkillCount || 0}/${preview.summary?.skillsCount || 0} SkillBlock 연결됨</span>
+    </div>
+    <div class="knowledge-source-grid">${sourceCards}</div>
+    <div class="knowledge-source-form">
+      <label>
+        Source ID
+        <input id="newKnowledgeSourceId" placeholder="manual_policy_note" autocomplete="off" />
+      </label>
+      <label>
+        Type
+        <select id="newKnowledgeSourceType">
+          <option value="manual_note">manual_note</option>
+          <option value="workspace_document">workspace_document</option>
+          <option value="uploaded_file">uploaded_file</option>
+          <option value="registry_asset">registry_asset</option>
+        </select>
+      </label>
+      <label>
+        Label
+        <input id="newKnowledgeSourceLabel" placeholder="Manual policy note" autocomplete="off" />
+      </label>
+      <button id="addKnowledgeSource" class="secondary" type="button">KnowledgeSource 추가</button>
+    </div>
+    <div class="skill-binding-list">${skillRows || `<p class="empty">연결할 SkillBlock이 없습니다.</p>`}</div>
+  `;
+}
+
 function renderImportPreview(preview) {
   state.lastImportPreview = preview;
+  state.bindingDraft = bindingDraftFromSpec(preview.spec || {});
   const summary = preview.summary || {};
   const validationState = summary.validationOk ? "ok" : "error";
   const cards = [
@@ -674,6 +776,10 @@ function renderImportPreview(preview) {
       <div class="import-assets">${assetGroups}</div>
     </div>
     <div class="import-preview__section">
+      <h3>Knowledge Binding</h3>
+      ${renderBindingEditor(preview)}
+    </div>
+    <div class="import-preview__section">
       <h3>Diagnostics</h3>
       <div class="diagnostic-columns">
         <div>
@@ -695,6 +801,78 @@ function renderImportPreview(preview) {
       <pre><code>${escapeHtml(specJson)}</code></pre>
     </details>
   `;
+  attachImportPreviewEvents();
+}
+
+async function previewWithBindingDraft() {
+  const preview = await request("/api/knolet/import/dot", {
+    method: "POST",
+    body: JSON.stringify(bindingPayload()),
+  });
+  renderImportPreview(preview);
+  logAction(
+    `Knowledge Binding preview 갱신: ${preview.summary?.boundSkillCount || 0}/${preview.summary?.skillsCount || 0} SkillBlock 연결.`,
+  );
+}
+
+function attachImportPreviewEvents() {
+  for (const button of elements.importPreview.querySelectorAll("[data-bind-workspace]")) {
+    button.addEventListener("click", () =>
+      runAction(button, async () => {
+        const skillId = button.dataset.bindWorkspace;
+        state.bindingDraft ||= bindingDraftFromSpec(state.lastImportPreview?.spec || {});
+        state.bindingDraft.skillBindings[skillId] = ["workspace_documents"];
+        await previewWithBindingDraft();
+      }),
+    );
+  }
+  for (const button of elements.importPreview.querySelectorAll("[data-bind-source]")) {
+    button.addEventListener("click", () =>
+      runAction(button, async () => {
+        const skillId = button.dataset.bindSource;
+        const select = elements.importPreview.querySelector(`[data-binding-select="${CSS.escape(skillId)}"]`);
+        const sourceId = select?.value;
+        if (!sourceId) {
+          throw new Error("연결할 KnowledgeSource를 먼저 선택하세요.");
+        }
+        state.bindingDraft ||= bindingDraftFromSpec(state.lastImportPreview?.spec || {});
+        state.bindingDraft.skillBindings[skillId] = [sourceId];
+        await previewWithBindingDraft();
+      }),
+    );
+  }
+  for (const button of elements.importPreview.querySelectorAll("[data-unbind-source]")) {
+    button.addEventListener("click", () =>
+      runAction(button, async () => {
+        const skillId = button.dataset.unbindSource;
+        state.bindingDraft ||= bindingDraftFromSpec(state.lastImportPreview?.spec || {});
+        state.bindingDraft.skillBindings[skillId] = [];
+        await previewWithBindingDraft();
+      }),
+    );
+  }
+  const addButton = elements.importPreview.querySelector("#addKnowledgeSource");
+  if (addButton) {
+    addButton.addEventListener("click", () =>
+      runAction(addButton, async () => {
+        const idInput = elements.importPreview.querySelector("#newKnowledgeSourceId");
+        const typeInput = elements.importPreview.querySelector("#newKnowledgeSourceType");
+        const labelInput = elements.importPreview.querySelector("#newKnowledgeSourceLabel");
+        const id = slugInput(idInput?.value, "manual_note");
+        state.bindingDraft ||= bindingDraftFromSpec(state.lastImportPreview?.spec || {});
+        state.bindingDraft.knowledgeSources = [
+          ...(state.bindingDraft.knowledgeSources || []).filter((source) => source.id !== id),
+          {
+            id,
+            type: typeInput?.value || "manual_note",
+            label: labelInput?.value || id,
+            required: false,
+          },
+        ];
+        await previewWithBindingDraft();
+      }),
+    );
+  }
 }
 
 function renderRegistryResults(results) {
@@ -821,7 +999,12 @@ async function loadWorkflowBlueprint() {
 }
 
 async function loadImportPreview() {
-  const preview = await request("/api/knolet/import/dot");
+  const preview = state.bindingDraft
+    ? await request("/api/knolet/import/dot", {
+        method: "POST",
+        body: JSON.stringify(bindingPayload()),
+      })
+    : await request("/api/knolet/import/dot");
   renderImportPreview(preview);
   logAction(
     `Import Preview 완료: Persona ${preview.summary?.personasCount || 0}, Skill ${preview.summary?.skillsCount || 0}, warning ${preview.summary?.warningCount || 0}개.`,
@@ -833,6 +1016,7 @@ async function saveKnoletSpec() {
     method: "POST",
     body: JSON.stringify({
       target: elements.knoletSaveTarget.value,
+      ...bindingPayload(),
     }),
   });
   logAction(`knolet.json 저장 완료: ${result.path}`);

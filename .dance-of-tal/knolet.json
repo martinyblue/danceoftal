@@ -29,6 +29,7 @@
       {
         "id": "workspace_documents",
         "type": "workspace_document",
+        "label": "Workspace documents",
         "required": false
       }
     ],
@@ -63,7 +64,9 @@
         "source-document-parser",
         "Extract domain concepts and workflow candidates from source documents."
       ],
-      "binds_to": [],
+      "binds_to": [
+        "workspace_documents"
+      ],
       "output_schema": "untyped_output",
       "description": "Extract domain concepts and workflow candidates from source documents."
     }
