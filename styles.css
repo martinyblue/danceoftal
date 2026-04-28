@@ -606,6 +606,76 @@ textarea {
   border-radius: 6px;
 }
 
+.graph-preview {
+  display: grid;
+  gap: 16px;
+  padding: 16px;
+}
+
+.graph-summary-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.graph-layout {
+  display: grid;
+  grid-template-columns: minmax(260px, 0.9fr) minmax(0, 1.1fr);
+  gap: 16px;
+}
+
+.graph-layout h3 {
+  margin: 0 0 10px;
+  font-size: 0.95rem;
+}
+
+.graph-breakdown,
+.graph-node-list {
+  display: grid;
+  gap: 8px;
+  margin: 0 0 14px;
+  padding: 0;
+  list-style: none;
+}
+
+.graph-breakdown {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.graph-breakdown li,
+.graph-node-row,
+.graph-detail-card {
+  display: grid;
+  gap: 4px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface);
+  text-align: left;
+}
+
+.graph-node-row {
+  width: 100%;
+  min-height: 54px;
+  color: var(--ink);
+}
+
+.graph-breakdown span,
+.graph-node-row span,
+.graph-detail-card span {
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.graph-detail-card pre {
+  max-height: 260px;
+  overflow: auto;
+  padding: 12px;
+  border-radius: 6px;
+  background: var(--code);
+  color: var(--code-ink);
+  font-size: 0.82rem;
+  line-height: 1.55;
+}
+
 .import-asset-group {
   display: grid;
   gap: 8px;
@@ -1442,6 +1512,9 @@ code {
   .skill-binding-row,
   .runtime-participants,
   .runtime-plan-grid,
+  .graph-summary-grid,
+  .graph-layout,
+  .graph-breakdown,
   .diagnostic-columns,
   .diagnostics-grid,
   .diagnostics-body,

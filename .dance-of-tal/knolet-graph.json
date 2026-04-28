@@ -1,0 +1,160 @@
+{
+  "graph_model_version": "0.1",
+  "id": "knolet-graph-2026-04-28T12-59-22-065Z",
+  "createdAt": "2026-04-28T12:59:22.065Z",
+  "status": "ready",
+  "source_spec": {
+    "id": "knolet://workspace/martinyblue/local/danceoftal-local",
+    "name": "danceoftal-local",
+    "version": "0.1"
+  },
+  "source_runtime_plan": {
+    "id": "runtime-plan-2026-04-28T12-59-22-065Z",
+    "status": "ready"
+  },
+  "summary": {
+    "ready": true,
+    "nodeCount": 7,
+    "edgeCount": 6,
+    "typeBreakdown": {
+      "source": 1,
+      "persona": 1,
+      "skill": 1,
+      "agent": 1,
+      "workflow_step": 1,
+      "evaluation": 1,
+      "output": 1
+    },
+    "errorCount": 0,
+    "warningCount": 0
+  },
+  "nodes": [
+    {
+      "id": "source:workspace_documents",
+      "type": "source",
+      "label": "Workspace documents",
+      "data": {
+        "source_id": "workspace_documents",
+        "source_type": "workspace_document",
+        "required": false
+      }
+    },
+    {
+      "id": "persona:persona.knolet-architect",
+      "type": "persona",
+      "label": "Knolet Architect",
+      "data": {
+        "persona_id": "persona.knolet-architect",
+        "role": "Domain knowledge to executable workflow app designer."
+      }
+    },
+    {
+      "id": "skill:skill.source-document-parser",
+      "type": "skill",
+      "label": "source-document-parser",
+      "data": {
+        "skill_id": "skill.source-document-parser",
+        "output_schema": "untyped_output"
+      }
+    },
+    {
+      "id": "agent:agent.knolet-builder",
+      "type": "agent",
+      "label": "agent.knolet-builder",
+      "data": {
+        "agent_id": "agent.knolet-builder",
+        "model": {
+          "provider": "openai",
+          "name": "gpt-5.4"
+        }
+      }
+    },
+    {
+      "id": "workflow_step:step_1",
+      "type": "workflow_step",
+      "label": "step_1",
+      "data": {
+        "step_id": "step_1",
+        "step_type": "agent_task",
+        "agent": "agent.knolet-builder",
+        "from": "",
+        "to": "",
+        "direction": ""
+      }
+    },
+    {
+      "id": "output:structured_report",
+      "type": "output",
+      "label": "Structured report",
+      "data": {
+        "sections": [
+          "knowledge_structure",
+          "knolet_spec",
+          "runtime_app_plan",
+          "version_fork_share"
+        ]
+      }
+    },
+    {
+      "id": "evaluation:runtime_checks",
+      "type": "evaluation",
+      "label": "Runtime checks",
+      "data": {
+        "checks": [
+          "citations_exist",
+          "output_schema_valid",
+          "knowledge_bindings_declared"
+        ]
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "binds_to:skill:skill.source-document-parser->source:workspace_documents",
+      "type": "binds_to",
+      "from": "skill:skill.source-document-parser",
+      "to": "source:workspace_documents",
+      "data": {}
+    },
+    {
+      "id": "uses_persona:agent:agent.knolet-builder->persona:persona.knolet-architect",
+      "type": "uses_persona",
+      "from": "agent:agent.knolet-builder",
+      "to": "persona:persona.knolet-architect",
+      "data": {}
+    },
+    {
+      "id": "has_skill:agent:agent.knolet-builder->skill:skill.source-document-parser",
+      "type": "has_skill",
+      "from": "agent:agent.knolet-builder",
+      "to": "skill:skill.source-document-parser",
+      "data": {}
+    },
+    {
+      "id": "runs_step:agent:agent.knolet-builder->workflow_step:step_1",
+      "type": "runs_step",
+      "from": "agent:agent.knolet-builder",
+      "to": "workflow_step:step_1",
+      "data": {}
+    },
+    {
+      "id": "produces:workflow_step:step_1->output:structured_report",
+      "type": "produces",
+      "from": "workflow_step:step_1",
+      "to": "output:structured_report",
+      "data": {}
+    },
+    {
+      "id": "evaluates:evaluation:runtime_checks->output:structured_report",
+      "type": "evaluates",
+      "from": "evaluation:runtime_checks",
+      "to": "output:structured_report",
+      "data": {}
+    }
+  ],
+  "diagnostics": [],
+  "next": {
+    "milestone": "0.3.6 DOT Studio Graph Rendering",
+    "detail": "Use this graph model as the intermediate canvas structure for visual editing."
+  }
+}

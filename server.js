@@ -8,6 +8,7 @@ const {
 } = require("./scripts/check-commercial-boundary");
 const { importDotWorkspace } = require("./lib/knolet/dot-importer");
 const { compileKnoletRuntimePlan } = require("./lib/knolet/runtime-plan");
+const { compileKnoletGraphModel } = require("./lib/knolet/graph-model");
 
 const root = process.cwd();
 const workspaceRoot = path.join(root, ".dance-of-tal");
@@ -16,6 +17,7 @@ const workflowExportsRoot = path.join(workspaceRoot, "exports");
 const knoletWorkspaceSpecPath = path.join(workspaceRoot, "knolet.json");
 const knoletRootSpecPath = path.join(root, "knolet.json");
 const runtimePlanPath = path.join(workspaceRoot, "runtime-plan.json");
+const knoletGraphPath = path.join(workspaceRoot, "knolet-graph.json");
 const port = Number(process.env.PORT || 8080);
 const studioUrl = process.env.DOT_STUDIO_URL || "http://127.0.0.1:43110";
 const opencodeUrl = process.env.OPENCODE_URL || "http://127.0.0.1:43120";
@@ -1449,6 +1451,35 @@ async function saveRuntimePlan(payload = {}) {
   };
 }
 
+async function graphModelPreview(payload = {}) {
+  const workspacePath = resolveWorkspaceInput(payload.path || ".dance-of-tal");
+  const specPreview = await importDotWorkspacePreview(workspacePath, payload);
+  const runtimePlan = compileKnoletRuntimePlan(specPreview.spec);
+  const graph = compileKnoletGraphModel(specPreview.spec, runtimePlan);
+  return {
+    graph,
+    specSummary: specPreview.summary,
+    runtimeSummary: runtimePlan.summary,
+    diagnosticsByLevel: {
+      error: graph.diagnostics.filter((item) => item.level === "error"),
+      warning: graph.diagnostics.filter((item) => item.level === "warning"),
+    },
+  };
+}
+
+async function saveGraphModel(payload = {}) {
+  const preview = await graphModelPreview(payload);
+  await fs.mkdir(path.dirname(knoletGraphPath), { recursive: true });
+  await fs.writeFile(knoletGraphPath, `${JSON.stringify(preview.graph, null, 2)}\n`);
+  return {
+    ok: true,
+    path: path.relative(root, knoletGraphPath),
+    summary: preview.graph.summary,
+    status: preview.graph.status,
+    diagnosticsByLevel: preview.diagnosticsByLevel,
+  };
+}
+
 async function seedStudioCanvas() {
   await seedWorkspace();
   return studioRequest("/api/workspaces", {
@@ -2135,6 +2166,23 @@ async function route(request, response) {
   if (url.pathname === "/api/knolet/runtime/plan/save" && request.method === "POST") {
     const payload = await parseBody(request);
     send(response, 200, await saveRuntimePlan(payload));
+    return;
+  }
+
+  if (url.pathname === "/api/knolet/graph" && request.method === "GET") {
+    send(response, 200, await graphModelPreview());
+    return;
+  }
+
+  if (url.pathname === "/api/knolet/graph" && request.method === "POST") {
+    const payload = await parseBody(request);
+    send(response, 200, await graphModelPreview(payload));
+    return;
+  }
+
+  if (url.pathname === "/api/knolet/graph/save" && request.method === "POST") {
+    const payload = await parseBody(request);
+    send(response, 200, await saveGraphModel(payload));
     return;
   }
 

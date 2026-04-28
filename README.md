@@ -246,6 +246,11 @@ The `Runtime Plan Preview` lowers the current bound KnoletSpec into
 connections, workflow edges, execution steps, diagnostics, and a planned run log
 skeleton.
 
+The `Knolet Graph Preview` lifts the KnoletSpec and RuntimePlan into
+`.dance-of-tal/knolet-graph.json`: Source, Persona, Skill, Agent, Workflow Step,
+Evaluation, and Output nodes with graph diagnostics and a selected-node detail
+view for the future visual builder.
+
 ## Operator Flow
 
 Use the Manager at <http://127.0.0.1:8080> in this order:
@@ -264,12 +269,14 @@ Use the Manager at <http://127.0.0.1:8080> in this order:
 8. Use `Runtime Plan Preview` to confirm agent/persona/skill/source wiring,
    workflow edges, execution steps, and runtime diagnostics, then save
    `runtime-plan.json`.
-9. Use the generated OpenCode handoff prompt as the starting point for a real
+9. Use `Knolet Graph Preview` to inspect node/edge counts, type breakdown,
+   selected node details, graph diagnostics, and save `knolet-graph.json`.
+10. Use the generated OpenCode handoff prompt as the starting point for a real
    `Document to Knolet App` run.
-10. Save the run inputs and captured outputs in `Workflow 산출물 저장`.
-11. Run `품질 검토` to catch missing or underdeveloped workflow outputs.
-12. Use `공유 패키지 만들기` to produce a Markdown handoff package.
-13. Use `0.2.0 통합 런처` as the starting point for DOT Studio, OpenCode,
+11. Save the run inputs and captured outputs in `Workflow 산출물 저장`.
+12. Run `품질 검토` to catch missing or underdeveloped workflow outputs.
+13. Use `공유 패키지 만들기` to produce a Markdown handoff package.
+14. Use `0.2.0 통합 런처` as the starting point for DOT Studio, OpenCode,
     Registry, and GitHub status checks.
 
 The Manager is a custom local operator UI for this repository. The official
@@ -341,9 +348,9 @@ of the current local Manager, DOT Studio, OpenCode, and Registry foundation.
 - `0.3.4` Workflow Runtime Interface: added a KnoletSpec-to-runtime-plan
   compiler, Manager runtime preview, runtime diagnostics, execution steps, run
   log skeletons, and `.dance-of-tal/runtime-plan.json` saving.
-- `0.3.5` Knolet Studio Graph Model: prepare Source, Skill, Persona, Agent,
-  Workflow Step, Evaluation, Human Approval, and Output nodes for a future
-  visual builder.
+- `0.3.5` Knolet Studio Graph Model: added a graph model compiler, Manager
+  graph preview, type breakdown, selected-node details, graph diagnostics, and
+  `.dance-of-tal/knolet-graph.json` saving for a future visual builder.
 - `0.4.0` Library and Sharing: turn DOT registry concepts into Knolet Library
   templates for SkillBlocks, AgentProfiles, WorkflowTemplates, EvaluationPacks,
   and Knowledge App Templates.
@@ -388,6 +395,10 @@ a package version bump plus a Git commit pushed to `martinyblue/danceoftal`.
 
 ## Version Notes
 
+- `0.3.5`: added the Knolet graph model compiler and Manager `Knolet Graph
+  Preview`, with Source/Persona/Skill/Agent/Workflow Step/Evaluation/Output
+  nodes, typed edges, graph diagnostics, selected-node details, and save support
+  for `.dance-of-tal/knolet-graph.json`.
 - `0.3.4`: added the runtime plan compiler and Manager `Runtime Plan Preview`,
   including participant skill/source views, workflow edge/step previews,
   runtime diagnostics, and save support for `.dance-of-tal/runtime-plan.json`.

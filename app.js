@@ -4,6 +4,7 @@ const state = {
   lastImportPreview: null,
   bindingDraft: null,
   lastRuntimePlan: null,
+  lastGraphPreview: null,
 };
 
 const templates = {
@@ -131,6 +132,9 @@ const elements = {
   refreshRuntimePlan: document.querySelector("#refreshRuntimePlan"),
   saveRuntimePlan: document.querySelector("#saveRuntimePlan"),
   runtimePlanPreview: document.querySelector("#runtimePlanPreview"),
+  refreshGraphPreview: document.querySelector("#refreshGraphPreview"),
+  saveGraphModel: document.querySelector("#saveGraphModel"),
+  graphPreview: document.querySelector("#graphPreview"),
   refreshRuns: document.querySelector("#refreshRuns"),
   runForm: document.querySelector("#runForm"),
   runTitle: document.querySelector("#runTitle"),
@@ -986,6 +990,136 @@ function renderRuntimePlanPreview(payload) {
   `;
 }
 
+function graphNodeButton(node) {
+  return `
+    <button class="graph-node-row" type="button" data-graph-node="${escapeHtml(node.id)}">
+      <strong>${escapeHtml(node.label || node.id)}</strong>
+      <span>${escapeHtml(node.type)} / ${escapeHtml(node.id)}</span>
+    </button>
+  `;
+}
+
+function renderGraphNodeDetail(node) {
+  if (!node) {
+    return `<p class="empty">왼쪽에서 graph node를 선택하세요.</p>`;
+  }
+  return `
+    <div class="graph-detail-card">
+      <strong>${escapeHtml(node.label || node.id)}</strong>
+      <span>${escapeHtml(node.type)} / ${escapeHtml(node.id)}</span>
+      <pre><code>${escapeHtml(JSON.stringify(node.data || {}, null, 2))}</code></pre>
+    </div>
+  `;
+}
+
+function renderGraphPreview(payload, selectedNodeId = "") {
+  state.lastGraphPreview = payload;
+  const graph = payload.graph || {};
+  const summary = graph.summary || {};
+  const statusState = summary.ready ? "ok" : "error";
+  const breakdown = summary.typeBreakdown || {};
+  const cards = [
+    ["Nodes", summary.nodeCount || 0],
+    ["Edges", summary.edgeCount || 0],
+    ["Diagnostics", `${summary.errorCount || 0} error / ${summary.warningCount || 0} warning`],
+    ["Status", graph.status || "unknown"],
+  ]
+    .map(
+      ([label, value]) => `
+        <article class="import-summary-card" data-state="${label === "Status" ? statusState : "ok"}">
+          <span>${escapeHtml(label)}</span>
+          <strong>${escapeHtml(value)}</strong>
+        </article>
+      `,
+    )
+    .join("");
+  const breakdownItems = Object.entries(breakdown)
+    .map(
+      ([type, count]) => `
+        <li>
+          <strong>${escapeHtml(type)}</strong>
+          <span>${count}</span>
+        </li>
+      `,
+    )
+    .join("");
+  const nodes = graph.nodes || [];
+  const selectedNode = nodes.find((node) => node.id === selectedNodeId) || nodes[0] || null;
+  const edges = (graph.edges || [])
+    .slice(0, 12)
+    .map(
+      (edge) => `
+        <li>
+          <strong>${escapeHtml(edge.type)}</strong>
+          <span>${escapeHtml(edge.from)} -> ${escapeHtml(edge.to)}</span>
+        </li>
+      `,
+    )
+    .join("");
+  const errors = payload.diagnosticsByLevel?.error || [];
+  const warnings = payload.diagnosticsByLevel?.warning || [];
+  const graphJson = JSON.stringify(graph, null, 2);
+
+  elements.graphPreview.innerHTML = `
+    <div class="import-preview__summary">
+      <div>
+        <strong>${escapeHtml(graph.source_spec?.name || "Knolet Graph")}</strong>
+        <p>KnoletSpec과 RuntimePlan을 graph model로 변환했습니다.</p>
+      </div>
+      <span class="asset-pill" data-state="${statusState}">${summary.ready ? "ready" : "blocked"}</span>
+    </div>
+    <div class="import-summary-grid graph-summary-grid">${cards}</div>
+    <div class="graph-layout">
+      <div>
+        <h3>Type breakdown</h3>
+        <ul class="graph-breakdown">${breakdownItems}</ul>
+        <h3>Nodes</h3>
+        <div class="graph-node-list">${nodes.map(graphNodeButton).join("")}</div>
+      </div>
+      <div>
+        <h3>Selected node detail</h3>
+        <div id="graphNodeDetail">${renderGraphNodeDetail(selectedNode)}</div>
+      </div>
+    </div>
+    <div class="graph-layout">
+      <div>
+        <h3>Edges</h3>
+        <ul class="next-step-list">${edges || `<li data-required="true"><strong>edge 없음</strong><span>Graph 연결이 없습니다.</span></li>`}</ul>
+      </div>
+      <div>
+        <h3>Graph diagnostics</h3>
+        <div class="diagnostic-columns">
+          <div>
+            <h4>Error</h4>
+            <ul class="import-diagnostics">${diagnosticItems(errors)}</ul>
+          </div>
+          <div>
+            <h4>Warning</h4>
+            <ul class="import-diagnostics">${diagnosticItems(warnings)}</ul>
+          </div>
+        </div>
+      </div>
+    </div>
+    <details class="spec-preview">
+      <summary>Knolet graph JSON 전체 보기</summary>
+      <pre><code>${escapeHtml(graphJson)}</code></pre>
+    </details>
+  `;
+  attachGraphPreviewEvents();
+}
+
+function attachGraphPreviewEvents() {
+  for (const button of elements.graphPreview.querySelectorAll("[data-graph-node]")) {
+    button.addEventListener("click", () => {
+      const node = state.lastGraphPreview?.graph?.nodes?.find((item) => item.id === button.dataset.graphNode);
+      const detail = elements.graphPreview.querySelector("#graphNodeDetail");
+      if (detail) {
+        detail.innerHTML = renderGraphNodeDetail(node);
+      }
+    });
+  }
+}
+
 function renderRegistryResults(results) {
   elements.registryResults.innerHTML = "";
   const items = Array.isArray(results) ? results : results.items || results.results || [];
@@ -1159,6 +1293,28 @@ async function saveRuntimePlan() {
   elements.previewTitle.textContent = "runtime-plan.json 저장 완료";
   elements.previewBody.textContent = `${result.path}\nstatus: ${result.status}\nrun: ${result.runLog?.id || ""}`;
   logAction(`Runtime plan 저장 완료: ${result.path}`);
+}
+
+async function loadGraphPreview() {
+  const payload = await request("/api/knolet/graph", {
+    method: "POST",
+    body: JSON.stringify(bindingPayload()),
+  });
+  renderGraphPreview(payload);
+  logAction(
+    `Graph preview 완료: node ${payload.graph?.summary?.nodeCount || 0}개, edge ${payload.graph?.summary?.edgeCount || 0}개.`,
+  );
+}
+
+async function saveGraphModel() {
+  const result = await request("/api/knolet/graph/save", {
+    method: "POST",
+    body: JSON.stringify(bindingPayload()),
+  });
+  await loadGraphPreview();
+  elements.previewTitle.textContent = "knolet-graph.json 저장 완료";
+  elements.previewBody.textContent = `${result.path}\nstatus: ${result.status}\nnodes: ${result.summary?.nodeCount || 0}\nedges: ${result.summary?.edgeCount || 0}`;
+  logAction(`Knolet graph 저장 완료: ${result.path}`);
 }
 
 async function loadLauncherHandoff() {
@@ -1514,6 +1670,12 @@ elements.refreshRuntimePlan.addEventListener("click", () =>
 elements.saveRuntimePlan.addEventListener("click", () =>
   runAction(elements.saveRuntimePlan, saveRuntimePlan),
 );
+elements.refreshGraphPreview.addEventListener("click", () =>
+  runAction(elements.refreshGraphPreview, loadGraphPreview),
+);
+elements.saveGraphModel.addEventListener("click", () =>
+  runAction(elements.saveGraphModel, saveGraphModel),
+);
 elements.refreshRuns.addEventListener("click", () => runAction(elements.refreshRuns, loadRuns));
 elements.runForm.addEventListener("submit", createRun);
 elements.saveRunOutputs.addEventListener("click", () =>
@@ -1557,6 +1719,9 @@ loadImportPreview().catch((error) => {
 });
 loadRuntimePlan().catch((error) => {
   elements.runtimePlanPreview.innerHTML = `<p class="empty">${error.message}</p>`;
+});
+loadGraphPreview().catch((error) => {
+  elements.graphPreview.innerHTML = `<p class="empty">${error.message}</p>`;
 });
 loadLauncherHandoff().catch((error) => {
   elements.launcherHandoff.innerHTML = `<p class="empty">${error.message}</p>`;
