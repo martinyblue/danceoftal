@@ -1,6 +1,6 @@
 {
   "name": "danceoftal-local-manager",
-  "version": "0.2.7",
+  "version": "0.3.0",
   "private": true,
   "description": "Local manager for dance-of-tal style Tal, Dance, Performer, and Act assets.",
   "scripts": {
@@ -11,6 +11,8 @@
     "studio:doctor": "dot-studio doctor . --verbose",
     "studio:patch-resize": "node scripts/patch-dot-studio-resize.js",
     "studio:commercial": "node scripts/run-commercial-studio.js",
+    "knolet:import": "node scripts/import-dot-workspace.js .dance-of-tal --out knolet.json",
+    "test": "node --test",
     "mode:check": "node scripts/check-commercial-boundary.js",
     "commercial:check": "DANCEOFTAL_MODE=commercial node scripts/check-commercial-boundary.js",
     "production:check": "DANCEOFTAL_MODE=production node scripts/check-commercial-boundary.js"

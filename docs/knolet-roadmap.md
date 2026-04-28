@@ -141,7 +141,17 @@ Done when:
 - missing knowledge bindings are warnings, not fatal errors
 - generated JSON/YAML can be saved for review
 
-Suggested version: `0.3.0`.
+Implemented in `0.3.0`:
+
+- `lib/knolet/schema.js`
+- `lib/knolet/dot-importer.js`
+- `scripts/import-dot-workspace.js`
+- `GET/POST /api/knolet/import/dot`
+- `test/knolet-importer.test.js`
+
+The importer returns `{ spec, diagnostics, assets, validation }`. Missing
+knowledge bindings are warnings so the user can import first, then bind sources
+in the next milestone.
 
 ## Phase 2: Import Preview and Editing
 

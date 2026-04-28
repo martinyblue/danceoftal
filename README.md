@@ -1,6 +1,6 @@
 # dance-of-tal Local Manager
 
-Version: `0.2.7`
+Version: `0.3.0`
 
 This repository contains a local-first manager for `dance-of-tal` style assets.
 It is built for the project owner, not first-time visitors. The local UI creates
@@ -156,6 +156,11 @@ dot-studio doctor . --verbose
 - list generated assets
 - preview generated JSON and `SKILL.md` files
 - inspect official `dot install` assets under `.dance-of-tal/assets/`
+- import `.dance-of-tal/` Tal, Dance, Performer, and Act assets into a
+  validated `KnoletSpec v0.1` through the library, CLI script, or Manager API
+- surface importer diagnostics for missing DOT directories, malformed JSON,
+  unresolved DOT references, invalid workflow relation directions, and missing
+  KnowledgeSource bindings
 
 ## Knolet Product Direction
 
@@ -206,6 +211,18 @@ metadata -> domain -> knowledge -> personas -> skills -> agents -> workflow
 
 See [docs/knolet-roadmap.md](docs/knolet-roadmap.md) for the full development
 plan and milestone map.
+
+Import the current DOT workspace into a KnoletSpec result:
+
+```bash
+PATH=/tmp/node-v22.11.0-darwin-arm64/bin:$PATH npm run knolet:import
+```
+
+Or inspect it through the running Manager:
+
+```bash
+curl -s http://127.0.0.1:8080/api/knolet/import/dot
+```
 
 ## Operator Flow
 
@@ -279,9 +296,10 @@ of the current local Manager, DOT Studio, OpenCode, and Registry foundation.
 
 - `0.2.7`: document the Knolet product direction, DOT-to-Knolet mapping, and
   full roadmap before implementation begins.
-- `0.3.0` Compatibility MVP: add `KnoletSpec v0.1`, scan `.dance-of-tal/`, parse
-  Tal/Dance/Performer/Act assets, map them to Persona/SkillBlock/RuntimeAgent/
-  Workflow, and report diagnostics for missing knowledge bindings.
+- `0.3.0` Compatibility MVP: added `KnoletSpec v0.1`, `.dance-of-tal/` scanning,
+  Tal/Dance/Performer/Act parsing, Persona/SkillBlock/RuntimeAgent/Workflow
+  mapping, importer diagnostics, fixtures, tests, CLI export, and Manager API
+  inspection.
 - `0.3.1` Import Preview: add a Manager UI/API flow for `Import from
   dance-of-tal`, preview mapped assets, and save `knolet.json` or `knolet.yaml`.
 - `0.3.2` Knowledge Binding: model KnowledgeSource, KnowledgeBinding,
@@ -337,6 +355,9 @@ a package version bump plus a Git commit pushed to `martinyblue/danceoftal`.
 
 ## Version Notes
 
+- `0.3.0`: added the KnoletSpec compatibility MVP with DOT workspace scanner,
+  DOT-to-Knolet mapper, schema validation, diagnostics, fixtures, tests, CLI
+  export, and Manager API import inspection.
 - `0.2.7`: added the Knolet product direction and full milestone roadmap for
   wrapping DOT assets as grounded, executable knowledge apps.
 - `0.2.6`: made the DOT Studio npm script non-interactive so npm update prompts

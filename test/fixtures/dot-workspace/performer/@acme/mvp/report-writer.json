@@ -1,0 +1,17 @@
+{
+  "kind": "performer",
+  "urn": "performer/@acme/mvp/report-writer",
+  "tal": "tal/@acme/mvp/compliance-reviewer",
+  "dances": [
+    "dance/@acme/mvp/contract-risk"
+  ],
+  "model": {
+    "provider": "openai",
+    "name": "gpt-5.4"
+  },
+  "tools": {
+    "local": [
+      "report_writer"
+    ]
+  }
+}

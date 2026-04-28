@@ -6,6 +6,7 @@ const {
   buildChecks: buildCommercialChecks,
   summarize: summarizeCommercialChecks,
 } = require("./scripts/check-commercial-boundary");
+const { importDotWorkspace } = require("./lib/knolet/dot-importer");
 
 const root = process.cwd();
 const workspaceRoot = path.join(root, ".dance-of-tal");
@@ -1222,6 +1223,15 @@ async function launcherHandoff() {
   };
 }
 
+function resolveWorkspaceInput(inputPath) {
+  const requested = inputPath || ".dance-of-tal";
+  const resolved = path.resolve(root, requested);
+  if (resolved !== root && !resolved.startsWith(root + path.sep)) {
+    throw new Error("Only workspaces inside this repository can be imported.");
+  }
+  return resolved;
+}
+
 async function seedStudioCanvas() {
   await seedWorkspace();
   return studioRequest("/api/workspaces", {
@@ -1872,6 +1882,19 @@ async function route(request, response) {
 
   if (url.pathname === "/api/knolet/workflow" && request.method === "GET") {
     send(response, 200, await knoletWorkflowBlueprint());
+    return;
+  }
+
+  if (url.pathname === "/api/knolet/import/dot" && request.method === "GET") {
+    const workspacePath = resolveWorkspaceInput(url.searchParams.get("path") || ".dance-of-tal");
+    send(response, 200, await importDotWorkspace(workspacePath));
+    return;
+  }
+
+  if (url.pathname === "/api/knolet/import/dot" && request.method === "POST") {
+    const payload = await parseBody(request);
+    const workspacePath = resolveWorkspaceInput(payload.path || ".dance-of-tal");
+    send(response, 200, await importDotWorkspace(workspacePath));
     return;
   }
 

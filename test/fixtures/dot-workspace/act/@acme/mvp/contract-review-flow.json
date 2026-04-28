@@ -1,0 +1,22 @@
+{
+  "kind": "act",
+  "urn": "act/@acme/mvp/contract-review-flow",
+  "participants": [
+    {
+      "id": "risk",
+      "performer": "performer/@acme/mvp/risk-reviewer"
+    },
+    {
+      "id": "report",
+      "performer": "performer/@acme/mvp/report-writer"
+    }
+  ],
+  "relations": [
+    {
+      "from": "risk",
+      "to": "report",
+      "direction": "one-way",
+      "payload": "verified_findings"
+    }
+  ]
+}

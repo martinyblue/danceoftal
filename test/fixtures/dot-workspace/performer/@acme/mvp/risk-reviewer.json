@@ -1,0 +1,18 @@
+{
+  "kind": "performer",
+  "urn": "performer/@acme/mvp/risk-reviewer",
+  "tal": "tal/@acme/mvp/compliance-reviewer",
+  "dances": [
+    "dance/@acme/mvp/contract-risk"
+  ],
+  "model": {
+    "provider": "openai",
+    "name": "gpt-5.4"
+  },
+  "tools": {
+    "local": [
+      "document_search",
+      "citation_extractor"
+    ]
+  }
+}
