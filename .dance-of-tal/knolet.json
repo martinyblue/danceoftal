@@ -1,0 +1,134 @@
+{
+  "knolet_spec_version": "0.1",
+  "metadata": {
+    "id": "knolet://workspace/martinyblue/local/danceoftal-local",
+    "name": "danceoftal-local",
+    "description": "Imported from a dance-of-tal workspace.",
+    "owner": "martinyblue",
+    "stage": "local",
+    "source": {
+      "kind": "dance-of-tal",
+      "dot_assets": [
+        "act/@martinyblue/local/document-to-knolet-app",
+        "dance/@martinyblue/local/source-document-parser",
+        "performer/@martinyblue/local/knolet-builder",
+        "tal/@martinyblue/local/knolet-architect"
+      ]
+    }
+  },
+  "domain": {
+    "name": "imported_dot_workspace",
+    "object_types": [
+      "document",
+      "knowledge_source",
+      "workflow_output"
+    ]
+  },
+  "knowledge": {
+    "sources": [
+      {
+        "id": "workspace_documents",
+        "type": "workspace_document",
+        "required": false
+      }
+    ],
+    "grounding_policy": {
+      "require_citations": true,
+      "allow_uncited_recommendations": false,
+      "uncertainty_required": true
+    }
+  },
+  "personas": [
+    {
+      "id": "persona.knolet-architect",
+      "from_dot_tal": "tal/@martinyblue/local/knolet-architect",
+      "name": "Knolet Architect",
+      "domain": "imported_dot_workspace",
+      "role": "Domain knowledge to executable workflow app designer.",
+      "authority_level": "advisory",
+      "tone": "concise, audit-friendly",
+      "must_follow": [
+        "Separate identity, knowledge, skills, UI, runtime, and versions.",
+        "Convert source documents into explicit KnoletSpec candidates.",
+        "Preserve fork/share/version boundaries in every workflow."
+      ]
+    }
+  ],
+  "skills": [
+    {
+      "id": "skill.source-document-parser",
+      "from_dot_dance": "dance/@martinyblue/local/source-document-parser",
+      "name": "source-document-parser",
+      "trigger": [
+        "source-document-parser",
+        "Extract domain concepts and workflow candidates from source documents."
+      ],
+      "binds_to": [],
+      "output_schema": "untyped_output",
+      "description": "Extract domain concepts and workflow candidates from source documents."
+    }
+  ],
+  "agents": [
+    {
+      "id": "agent.knolet-builder",
+      "from_dot_performer": "performer/@martinyblue/local/knolet-builder",
+      "persona": "persona.knolet-architect",
+      "skills": [
+        "skill.source-document-parser"
+      ],
+      "model": {
+        "provider": "openai",
+        "name": "gpt-5.4"
+      },
+      "tools": [
+        "filesystem"
+      ],
+      "memory": {
+        "scope": "workflow_run"
+      },
+      "permissions": {
+        "can_read": [
+          "current_workspace_documents"
+        ],
+        "cannot": [
+          "send_external_email",
+          "modify_source_documents"
+        ]
+      }
+    }
+  ],
+  "workflow": {
+    "id": "workflow.document-to-knolet-app",
+    "from_dot_act": "act/@martinyblue/local/document-to-knolet-app",
+    "nodes": [
+      "agent.knolet-builder"
+    ],
+    "edges": []
+  },
+  "app": {
+    "input_ui": {
+      "type": "upload_plus_form",
+      "fields": [
+        "source_document",
+        "target_user",
+        "runtime_constraints"
+      ]
+    },
+    "output_ui": {
+      "type": "structured_report",
+      "sections": [
+        "knowledge_structure",
+        "knolet_spec",
+        "runtime_app_plan",
+        "version_fork_share"
+      ]
+    }
+  },
+  "evaluation": {
+    "checks": [
+      "citations_exist",
+      "output_schema_valid",
+      "knowledge_bindings_declared"
+    ]
+  }
+}

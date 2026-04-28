@@ -12,6 +12,8 @@ const root = process.cwd();
 const workspaceRoot = path.join(root, ".dance-of-tal");
 const workflowRunsRoot = path.join(workspaceRoot, "runs");
 const workflowExportsRoot = path.join(workspaceRoot, "exports");
+const knoletWorkspaceSpecPath = path.join(workspaceRoot, "knolet.json");
+const knoletRootSpecPath = path.join(root, "knolet.json");
 const port = Number(process.env.PORT || 8080);
 const studioUrl = process.env.DOT_STUDIO_URL || "http://127.0.0.1:43110";
 const opencodeUrl = process.env.OPENCODE_URL || "http://127.0.0.1:43120";
@@ -1232,6 +1234,142 @@ function resolveWorkspaceInput(inputPath) {
   return resolved;
 }
 
+function diagnosticHelp(item) {
+  const code = item?.code || "diagnostic";
+  if (code === "missing-knowledge-binding") {
+    return {
+      category: "knowledge-binding",
+      humanMessage: "KnowledgeSource 연결이 아직 없습니다.",
+      nextAction: "다음 단계 0.3.3 Knowledge Binding에서 이 SkillBlock에 KnowledgeSource를 연결해야 합니다.",
+    };
+  }
+  if (code === "invalid-dot-json") {
+    return {
+      category: "dot-asset",
+      humanMessage: "DOT JSON asset을 파싱할 수 없습니다.",
+      nextAction: "표시된 파일의 JSON 문법과 payload 구조를 확인하세요.",
+    };
+  }
+  if (code === "missing-dot-directory" || code === "empty-dot-directory") {
+    return {
+      category: "workspace",
+      humanMessage: "가져올 DOT asset 폴더가 비어 있거나 없습니다.",
+      nextAction: "필요한 Tal, Dance, Performer, Act asset을 만들거나 Registry에서 설치하세요.",
+    };
+  }
+  if (code.startsWith("unknown-dot-") || code === "unmapped-workflow-relation") {
+    return {
+      category: "dot-reference",
+      humanMessage: "DOT asset 사이의 참조를 Knolet 엔티티로 연결하지 못했습니다.",
+      nextAction: "참조 URN이 실제 workspace asset과 일치하는지 확인하세요.",
+    };
+  }
+  return {
+    category: item?.level === "error" ? "validation" : "review",
+    humanMessage: item?.message || code,
+    nextAction: item?.level === "error" ? "저장 전에 validation error를 먼저 해결하세요." : "필요하면 다음 개발 단계에서 보강하세요.",
+  };
+}
+
+function summarizeImportResult(result, workspacePath) {
+  const spec = result.spec || {};
+  const workflow = spec.workflow || {};
+  const diagnostics = (result.diagnostics || []).map((item) => ({
+    ...item,
+    ...diagnosticHelp(item),
+  }));
+  const errors = diagnostics.filter((item) => item.level === "error");
+  const warnings = diagnostics.filter((item) => item.level === "warning");
+  const missingBindings = warnings.filter((item) => item.code === "missing-knowledge-binding");
+  const unboundSkills = Array.isArray(spec.skills)
+    ? spec.skills.filter((skill) => !Array.isArray(skill.binds_to) || skill.binds_to.length === 0)
+    : [];
+  const assetsByKind = {};
+  for (const asset of result.assets || []) {
+    assetsByKind[asset.kind] ||= [];
+    assetsByKind[asset.kind].push(asset);
+  }
+
+  return {
+    ...result,
+    diagnostics,
+    diagnosticsByLevel: {
+      error: errors,
+      warning: warnings,
+    },
+    assetsByKind,
+    summary: {
+      workspace: path.relative(root, workspacePath),
+      name: spec.metadata?.name || "Imported DOT workspace",
+      specVersion: spec.knolet_spec_version || "unknown",
+      personasCount: Array.isArray(spec.personas) ? spec.personas.length : 0,
+      skillsCount: Array.isArray(spec.skills) ? spec.skills.length : 0,
+      agentsCount: Array.isArray(spec.agents) ? spec.agents.length : 0,
+      workflowNodesCount: Array.isArray(workflow.nodes) ? workflow.nodes.length : 0,
+      workflowEdgesCount: Array.isArray(workflow.edges) ? workflow.edges.length : 0,
+      validationOk: Boolean(result.validation?.ok),
+      errorCount: errors.length,
+      warningCount: warnings.length,
+      missingKnowledgeBindingCount: unboundSkills.length || missingBindings.length,
+    },
+    nextSteps: [
+      {
+        key: "knowledge-binding",
+        label: "0.3.3 Knowledge Binding",
+        required: missingBindings.length > 0,
+        detail:
+          missingBindings.length > 0
+            ? `${unboundSkills.length || missingBindings.length}개 SkillBlock에 KnowledgeSource 연결이 필요합니다.`
+            : "현재 import preview에서는 추가 KnowledgeSource warning이 없습니다.",
+      },
+      {
+        key: "knowledge-source",
+        label: "KnowledgeSource 모델 확정",
+        required: true,
+        detail: "workspace document, uploaded file, registry source 같은 입력 출처를 KnoletSpec에 명시합니다.",
+      },
+      {
+        key: "citation-policy",
+        label: "Citation required output",
+        required: true,
+        detail: "grounding_policy와 output section이 citation을 어떻게 요구하는지 UI에서 확인 가능하게 만듭니다.",
+      },
+    ],
+  };
+}
+
+async function importDotWorkspacePreview(workspacePath) {
+  const result = await importDotWorkspace(workspacePath);
+  return summarizeImportResult(result, workspacePath);
+}
+
+function resolveKnoletSaveTarget(target) {
+  if (target === "repo-root") {
+    return knoletRootSpecPath;
+  }
+  if (!target || target === "workspace") {
+    return knoletWorkspaceSpecPath;
+  }
+  throw new Error("knolet.json can only be saved to repo root or .dance-of-tal/knolet.json.");
+}
+
+async function saveKnoletImport(payload = {}) {
+  const workspacePath = resolveWorkspaceInput(payload.path || ".dance-of-tal");
+  const targetPath = resolveKnoletSaveTarget(payload.target || "workspace");
+  const preview = await importDotWorkspacePreview(workspacePath);
+  await fs.mkdir(path.dirname(targetPath), { recursive: true });
+  await fs.writeFile(targetPath, `${JSON.stringify(preview.spec, null, 2)}\n`);
+  return {
+    ok: true,
+    path: path.relative(root, targetPath),
+    target: targetPath === knoletRootSpecPath ? "repo-root" : "workspace",
+    summary: preview.summary,
+    validation: preview.validation,
+    diagnosticsByLevel: preview.diagnosticsByLevel,
+    nextSteps: preview.nextSteps,
+  };
+}
+
 async function seedStudioCanvas() {
   await seedWorkspace();
   return studioRequest("/api/workspaces", {
@@ -1887,14 +2025,20 @@ async function route(request, response) {
 
   if (url.pathname === "/api/knolet/import/dot" && request.method === "GET") {
     const workspacePath = resolveWorkspaceInput(url.searchParams.get("path") || ".dance-of-tal");
-    send(response, 200, await importDotWorkspace(workspacePath));
+    send(response, 200, await importDotWorkspacePreview(workspacePath));
     return;
   }
 
   if (url.pathname === "/api/knolet/import/dot" && request.method === "POST") {
     const payload = await parseBody(request);
     const workspacePath = resolveWorkspaceInput(payload.path || ".dance-of-tal");
-    send(response, 200, await importDotWorkspace(workspacePath));
+    send(response, 200, await importDotWorkspacePreview(workspacePath));
+    return;
+  }
+
+  if (url.pathname === "/api/knolet/import/dot/save" && request.method === "POST") {
+    const payload = await parseBody(request);
+    send(response, 200, await saveKnoletImport(payload));
     return;
   }
 

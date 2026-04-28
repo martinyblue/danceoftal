@@ -273,6 +273,26 @@
           </div>
         </section>
 
+        <section class="panel import-preview-panel">
+          <div class="panel-heading">
+            <div>
+              <p class="label">0.3.2 Import Preview</p>
+              <h2>Knolet Import Preview</h2>
+            </div>
+            <div class="form-actions">
+              <button id="refreshImportPreview" class="secondary" type="button">DOT workspace 가져오기</button>
+              <select id="knoletSaveTarget" aria-label="knolet.json 저장 위치">
+                <option value="workspace">.dance-of-tal/knolet.json</option>
+                <option value="repo-root">repo root/knolet.json</option>
+              </select>
+              <button id="saveKnoletSpec" type="button">knolet.json 저장</button>
+            </div>
+          </div>
+          <div id="importPreview" class="import-preview">
+            <p class="empty">버튼을 누르면 `.dance-of-tal/` workspace를 KnoletSpec으로 변환해 미리봅니다.</p>
+          </div>
+        </section>
+
         <section class="panel workflow-runs-panel">
           <div class="panel-heading">
             <div>

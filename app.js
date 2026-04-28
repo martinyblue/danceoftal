@@ -1,6 +1,7 @@
 const state = {
   assets: [],
   currentRun: null,
+  lastImportPreview: null,
 };
 
 const templates = {
@@ -121,6 +122,10 @@ const elements = {
   refreshWorkflowPlan: document.querySelector("#refreshWorkflowPlan"),
   workflowBlueprint: document.querySelector("#workflowBlueprint"),
   workflowPrompt: document.querySelector("#workflowPrompt"),
+  refreshImportPreview: document.querySelector("#refreshImportPreview"),
+  saveKnoletSpec: document.querySelector("#saveKnoletSpec"),
+  knoletSaveTarget: document.querySelector("#knoletSaveTarget"),
+  importPreview: document.querySelector("#importPreview"),
   refreshRuns: document.querySelector("#refreshRuns"),
   runForm: document.querySelector("#runForm"),
   runTitle: document.querySelector("#runTitle"),
@@ -574,6 +579,124 @@ function renderWorkflowBlueprint(workflow) {
   elements.workflowPrompt.textContent = workflow.handoffPrompt;
 }
 
+function diagnosticItems(items) {
+  if (!items?.length) {
+    return `<li data-level="ok"><strong>없음</strong><span>이 수준의 diagnostics가 없습니다.</span></li>`;
+  }
+  return items
+    .map(
+      (item) => `
+        <li data-level="${escapeHtml(item.level || "warning")}">
+          <strong>${escapeHtml(item.code || "diagnostic")}</strong>
+          <span>${escapeHtml(item.humanMessage || item.message || "")}</span>
+          <small>${escapeHtml(item.nextAction || "")}</small>
+          ${item.path ? `<code>${escapeHtml(item.path)}</code>` : ""}
+        </li>
+      `,
+    )
+    .join("");
+}
+
+function assetGroup(title, assets) {
+  const rows = (assets || [])
+    .map(
+      (asset) => `
+        <li>
+          <strong>${escapeHtml(asset.urn)}</strong>
+          <span>${escapeHtml(asset.path)}</span>
+        </li>
+      `,
+    )
+    .join("");
+  return `
+    <article class="import-asset-group">
+      <strong>${escapeHtml(title)}</strong>
+      <ul>${rows || "<li><span>가져온 asset 없음</span></li>"}</ul>
+    </article>
+  `;
+}
+
+function renderImportPreview(preview) {
+  state.lastImportPreview = preview;
+  const summary = preview.summary || {};
+  const validationState = summary.validationOk ? "ok" : "error";
+  const cards = [
+    ["Personas", summary.personasCount || 0],
+    ["Skills", summary.skillsCount || 0],
+    ["Agents", summary.agentsCount || 0],
+    ["Workflow", `${summary.workflowNodesCount || 0} nodes / ${summary.workflowEdgesCount || 0} edges`],
+    ["Validation", summary.validationOk ? "OK" : "Error"],
+  ]
+    .map(
+      ([label, value]) => `
+        <article class="import-summary-card" data-state="${label === "Validation" ? validationState : "ok"}">
+          <span>${escapeHtml(label)}</span>
+          <strong>${escapeHtml(value)}</strong>
+        </article>
+      `,
+    )
+    .join("");
+
+  const assetsByKind = preview.assetsByKind || {};
+  const assetGroups = ["tal", "dance", "performer", "act"]
+    .map((kind) => assetGroup(kind, assetsByKind[kind]))
+    .join("");
+  const errors = preview.diagnosticsByLevel?.error || [];
+  const warnings = preview.diagnosticsByLevel?.warning || [];
+  const nextSteps = (preview.nextSteps || [])
+    .map(
+      (step) => `
+        <li data-required="${step.required ? "true" : "false"}">
+          <strong>${escapeHtml(step.label)}</strong>
+          <span>${escapeHtml(step.detail)}</span>
+        </li>
+      `,
+    )
+    .join("");
+  const specJson = JSON.stringify(preview.spec || {}, null, 2);
+
+  elements.importPreview.innerHTML = `
+    <div class="import-preview__summary">
+      <div>
+        <strong>${escapeHtml(summary.name || "Imported DOT workspace")}</strong>
+        <p>
+          ${escapeHtml(summary.workspace || ".dance-of-tal")}에서 KnoletSpec v${escapeHtml(summary.specVersion || "unknown")}로 변환했습니다.
+          Diagnostics: error ${summary.errorCount || 0}, warning ${summary.warningCount || 0}.
+        </p>
+      </div>
+      <span class="asset-pill" data-state="${validationState}">${
+        summary.validationOk ? "validation ok" : "validation error"
+      }</span>
+    </div>
+    <div class="import-summary-grid">${cards}</div>
+    <div class="import-preview__section">
+      <h3>Imported assets</h3>
+      <div class="import-assets">${assetGroups}</div>
+    </div>
+    <div class="import-preview__section">
+      <h3>Diagnostics</h3>
+      <div class="diagnostic-columns">
+        <div>
+          <h4>Error</h4>
+          <ul class="import-diagnostics">${diagnosticItems(errors)}</ul>
+        </div>
+        <div>
+          <h4>Warning</h4>
+          <ul class="import-diagnostics">${diagnosticItems(warnings)}</ul>
+        </div>
+      </div>
+    </div>
+    <div class="import-preview__section">
+      <h3>0.3.3 Knowledge Binding에서 채울 항목</h3>
+      <ul class="next-step-list">${nextSteps}</ul>
+    </div>
+    <details class="spec-preview">
+      <summary>KnoletSpec JSON 전체 보기</summary>
+      <pre><code>${escapeHtml(specJson)}</code></pre>
+    </details>
+  `;
+}
+
 function renderRegistryResults(results) {
   elements.registryResults.innerHTML = "";
   const items = Array.isArray(results) ? results : results.items || results.results || [];
@@ -695,6 +818,30 @@ async function loadWorkflowBlueprint() {
   const workflow = await request("/api/knolet/workflow");
   renderWorkflowBlueprint(workflow);
   logAction(`Knolet workflow blueprint 확인 완료: ${workflow.ready ? "준비됨" : "확인 필요"}`);
+}
+
+async function loadImportPreview() {
+  const preview = await request("/api/knolet/import/dot");
+  renderImportPreview(preview);
+  logAction(
+    `Import Preview 완료: Persona ${preview.summary?.personasCount || 0}, Skill ${preview.summary?.skillsCount || 0}, warning ${preview.summary?.warningCount || 0}개.`,
+  );
+}
+
+async function saveKnoletSpec() {
+  const result = await request("/api/knolet/import/dot/save", {
+    method: "POST",
+    body: JSON.stringify({
+      target: elements.knoletSaveTarget.value,
+    }),
+  });
+  logAction(`knolet.json 저장 완료: ${result.path}`);
+  if (!state.lastImportPreview) {
+    const preview = await request("/api/knolet/import/dot");
+    renderImportPreview(preview);
+  }
+  elements.previewTitle.textContent = "knolet.json 저장 완료";
+  elements.previewBody.textContent = `${result.path}\nvalidation: ${result.validation?.ok ? "ok" : "error"}`;
 }
 
 async function loadLauncherHandoff() {
@@ -1038,6 +1185,12 @@ elements.seedStudio.addEventListener("click", () =>
 elements.refreshWorkflowPlan.addEventListener("click", () =>
   runAction(elements.refreshWorkflowPlan, loadWorkflowBlueprint),
 );
+elements.refreshImportPreview.addEventListener("click", () =>
+  runAction(elements.refreshImportPreview, loadImportPreview),
+);
+elements.saveKnoletSpec.addEventListener("click", () =>
+  runAction(elements.saveKnoletSpec, saveKnoletSpec),
+);
 elements.refreshRuns.addEventListener("click", () => runAction(elements.refreshRuns, loadRuns));
 elements.runForm.addEventListener("submit", createRun);
 elements.saveRunOutputs.addEventListener("click", () =>
@@ -1075,6 +1228,9 @@ runDiagnostics().catch((error) => {
 });
 loadWorkflowBlueprint().catch((error) => {
   elements.workflowBlueprint.innerHTML = `<p class="empty">${error.message}</p>`;
+});
+loadImportPreview().catch((error) => {
+  elements.importPreview.innerHTML = `<p class="empty">${error.message}</p>`;
 });
 loadLauncherHandoff().catch((error) => {
   elements.launcherHandoff.innerHTML = `<p class="empty">${error.message}</p>`;
