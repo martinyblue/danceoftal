@@ -1,0 +1,87 @@
+{
+  "runtime_plan_version": "0.1",
+  "id": "runtime-plan-2026-04-28T12-53-21-548Z",
+  "createdAt": "2026-04-28T12:53:21.548Z",
+  "status": "ready",
+  "source_spec": {
+    "id": "knolet://workspace/martinyblue/local/danceoftal-local",
+    "name": "danceoftal-local",
+    "version": "0.1"
+  },
+  "summary": {
+    "ready": true,
+    "participantsCount": 1,
+    "stepsCount": 1,
+    "edgesCount": 0,
+    "errorCount": 0,
+    "warningCount": 0
+  },
+  "participants": [
+    {
+      "id": "agent.knolet-builder",
+      "persona": {
+        "id": "persona.knolet-architect",
+        "name": "Knolet Architect",
+        "role": "Domain knowledge to executable workflow app designer."
+      },
+      "skills": [
+        {
+          "id": "skill.source-document-parser",
+          "name": "source-document-parser",
+          "output_schema": "untyped_output",
+          "knowledge_sources": [
+            {
+              "id": "workspace_documents",
+              "type": "workspace_document",
+              "label": "Workspace documents",
+              "required": false
+            }
+          ]
+        }
+      ],
+      "model": {
+        "provider": "openai",
+        "name": "gpt-5.4"
+      },
+      "tools": [
+        "filesystem"
+      ],
+      "permissions": {
+        "can_read": [
+          "current_workspace_documents"
+        ],
+        "cannot": [
+          "send_external_email",
+          "modify_source_documents"
+        ]
+      }
+    }
+  ],
+  "workflow": {
+    "id": "workflow.document-to-knolet-app",
+    "nodes": [
+      "agent.knolet-builder"
+    ],
+    "edges": [],
+    "steps": [
+      {
+        "id": "step_1",
+        "type": "agent_task",
+        "agent": "agent.knolet-builder"
+      }
+    ]
+  },
+  "diagnostics": [],
+  "run_log": {
+    "id": "run-2026-04-28T12-53-21-548Z",
+    "status": "planned",
+    "createdAt": "2026-04-28T12:53:21.548Z",
+    "events": [
+      {
+        "at": "2026-04-28T12:53:21.548Z",
+        "type": "runtime-plan-created",
+        "message": "Runtime plan ready for execution handoff."
+      }
+    ]
+  }
+}

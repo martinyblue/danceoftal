@@ -7,6 +7,7 @@ const {
   summarize: summarizeCommercialChecks,
 } = require("./scripts/check-commercial-boundary");
 const { importDotWorkspace } = require("./lib/knolet/dot-importer");
+const { compileKnoletRuntimePlan } = require("./lib/knolet/runtime-plan");
 
 const root = process.cwd();
 const workspaceRoot = path.join(root, ".dance-of-tal");
@@ -14,6 +15,7 @@ const workflowRunsRoot = path.join(workspaceRoot, "runs");
 const workflowExportsRoot = path.join(workspaceRoot, "exports");
 const knoletWorkspaceSpecPath = path.join(workspaceRoot, "knolet.json");
 const knoletRootSpecPath = path.join(root, "knolet.json");
+const runtimePlanPath = path.join(workspaceRoot, "runtime-plan.json");
 const port = Number(process.env.PORT || 8080);
 const studioUrl = process.env.DOT_STUDIO_URL || "http://127.0.0.1:43110";
 const opencodeUrl = process.env.OPENCODE_URL || "http://127.0.0.1:43120";
@@ -1419,6 +1421,34 @@ async function saveKnoletImport(payload = {}) {
   };
 }
 
+async function runtimePlanPreview(payload = {}) {
+  const workspacePath = resolveWorkspaceInput(payload.path || ".dance-of-tal");
+  const preview = await importDotWorkspacePreview(workspacePath, payload);
+  const plan = compileKnoletRuntimePlan(preview.spec);
+  return {
+    plan,
+    specSummary: preview.summary,
+    diagnosticsByLevel: {
+      error: plan.diagnostics.filter((item) => item.level === "error"),
+      warning: plan.diagnostics.filter((item) => item.level === "warning"),
+    },
+  };
+}
+
+async function saveRuntimePlan(payload = {}) {
+  const preview = await runtimePlanPreview(payload);
+  await fs.mkdir(path.dirname(runtimePlanPath), { recursive: true });
+  await fs.writeFile(runtimePlanPath, `${JSON.stringify(preview.plan, null, 2)}\n`);
+  return {
+    ok: true,
+    path: path.relative(root, runtimePlanPath),
+    summary: preview.plan.summary,
+    status: preview.plan.status,
+    diagnosticsByLevel: preview.diagnosticsByLevel,
+    runLog: preview.plan.run_log,
+  };
+}
+
 async function seedStudioCanvas() {
   await seedWorkspace();
   return studioRequest("/api/workspaces", {
@@ -2088,6 +2118,23 @@ async function route(request, response) {
   if (url.pathname === "/api/knolet/import/dot/save" && request.method === "POST") {
     const payload = await parseBody(request);
     send(response, 200, await saveKnoletImport(payload));
+    return;
+  }
+
+  if (url.pathname === "/api/knolet/runtime/plan" && request.method === "GET") {
+    send(response, 200, await runtimePlanPreview());
+    return;
+  }
+
+  if (url.pathname === "/api/knolet/runtime/plan" && request.method === "POST") {
+    const payload = await parseBody(request);
+    send(response, 200, await runtimePlanPreview(payload));
+    return;
+  }
+
+  if (url.pathname === "/api/knolet/runtime/plan/save" && request.method === "POST") {
+    const payload = await parseBody(request);
+    send(response, 200, await saveRuntimePlan(payload));
     return;
   }
 

@@ -3,6 +3,7 @@ const state = {
   currentRun: null,
   lastImportPreview: null,
   bindingDraft: null,
+  lastRuntimePlan: null,
 };
 
 const templates = {
@@ -127,6 +128,9 @@ const elements = {
   saveKnoletSpec: document.querySelector("#saveKnoletSpec"),
   knoletSaveTarget: document.querySelector("#knoletSaveTarget"),
   importPreview: document.querySelector("#importPreview"),
+  refreshRuntimePlan: document.querySelector("#refreshRuntimePlan"),
+  saveRuntimePlan: document.querySelector("#saveRuntimePlan"),
+  runtimePlanPreview: document.querySelector("#runtimePlanPreview"),
   refreshRuns: document.querySelector("#refreshRuns"),
   runForm: document.querySelector("#runForm"),
   runTitle: document.querySelector("#runTitle"),
@@ -875,6 +879,113 @@ function attachImportPreviewEvents() {
   }
 }
 
+function renderRuntimeParticipant(participant) {
+  const skills = (participant.skills || [])
+    .map((skill) => {
+      const sources = (skill.knowledge_sources || []).map((source) => source.label || source.id).join(", ") || "KnowledgeSource 없음";
+      return `<li><strong>${escapeHtml(skill.name || skill.id)}</strong><span>${escapeHtml(sources)}</span></li>`;
+    })
+    .join("");
+  return `
+    <article class="runtime-participant">
+      <div>
+        <strong>${escapeHtml(participant.id)}</strong>
+        <span>${escapeHtml(participant.persona?.name || "Persona 없음")} / ${escapeHtml(participant.persona?.role || "")}</span>
+      </div>
+      <ul>${skills || "<li><span>실행할 SkillBlock 없음</span></li>"}</ul>
+    </article>
+  `;
+}
+
+function renderRuntimePlanPreview(payload) {
+  state.lastRuntimePlan = payload;
+  const plan = payload.plan || {};
+  const summary = plan.summary || {};
+  const statusState = summary.ready ? "ok" : "error";
+  const cards = [
+    ["Participants", summary.participantsCount || 0],
+    ["Steps", summary.stepsCount || 0],
+    ["Edges", summary.edgesCount || 0],
+    ["Diagnostics", `${summary.errorCount || 0} error / ${summary.warningCount || 0} warning`],
+    ["Status", plan.status || "unknown"],
+  ]
+    .map(
+      ([label, value]) => `
+        <article class="import-summary-card" data-state="${label === "Status" ? statusState : "ok"}">
+          <span>${escapeHtml(label)}</span>
+          <strong>${escapeHtml(value)}</strong>
+        </article>
+      `,
+    )
+    .join("");
+  const participants = (plan.participants || []).map(renderRuntimeParticipant).join("");
+  const edges = (plan.workflow?.edges || [])
+    .map(
+      (edge) => `
+        <li>
+          <strong>${escapeHtml(edge.from)} -> ${escapeHtml(edge.to)}</strong>
+          <span>${escapeHtml(edge.direction || "one-way")}</span>
+        </li>
+      `,
+    )
+    .join("");
+  const steps = (plan.workflow?.steps || [])
+    .map(
+      (step) => `
+        <li>
+          <strong>${escapeHtml(step.id)}</strong>
+          <span>${escapeHtml(step.type)} ${escapeHtml(step.agent || `${step.from || ""} -> ${step.to || ""}`)}</span>
+        </li>
+      `,
+    )
+    .join("");
+  const errors = payload.diagnosticsByLevel?.error || [];
+  const warnings = payload.diagnosticsByLevel?.warning || [];
+  const planJson = JSON.stringify(plan, null, 2);
+
+  elements.runtimePlanPreview.innerHTML = `
+    <div class="import-preview__summary">
+      <div>
+        <strong>${escapeHtml(plan.source_spec?.name || "Runtime Plan")}</strong>
+        <p>KnoletSpec을 실행 직전 workflow plan으로 변환했습니다.</p>
+      </div>
+      <span class="asset-pill" data-state="${statusState}">${summary.ready ? "ready" : "blocked"}</span>
+    </div>
+    <div class="import-summary-grid">${cards}</div>
+    <div class="runtime-plan-section">
+      <h3>Runtime participants</h3>
+      <div class="runtime-participants">${participants || `<p class="empty">실행 participant가 없습니다.</p>`}</div>
+    </div>
+    <div class="runtime-plan-grid">
+      <div>
+        <h3>Workflow edges</h3>
+        <ul class="next-step-list">${edges || `<li data-required="false"><strong>edge 없음</strong><span>단일 agent task로 실행합니다.</span></li>`}</ul>
+      </div>
+      <div>
+        <h3>Execution steps</h3>
+        <ul class="next-step-list">${steps || `<li data-required="true"><strong>step 없음</strong><span>실행 계획을 만들 수 없습니다.</span></li>`}</ul>
+      </div>
+    </div>
+    <div class="runtime-plan-section">
+      <h3>Runtime diagnostics</h3>
+      <div class="diagnostic-columns">
+        <div>
+          <h4>Error</h4>
+          <ul class="import-diagnostics">${diagnosticItems(errors)}</ul>
+        </div>
+        <div>
+          <h4>Warning</h4>
+          <ul class="import-diagnostics">${diagnosticItems(warnings)}</ul>
+        </div>
+      </div>
+    </div>
+    <details class="spec-preview">
+      <summary>Runtime plan JSON 전체 보기</summary>
+      <pre><code>${escapeHtml(planJson)}</code></pre>
+    </details>
+  `;
+}
+
 function renderRegistryResults(results) {
   elements.registryResults.innerHTML = "";
   const items = Array.isArray(results) ? results : results.items || results.results || [];
@@ -1026,6 +1137,28 @@ async function saveKnoletSpec() {
   }
   elements.previewTitle.textContent = "knolet.json 저장 완료";
   elements.previewBody.textContent = `${result.path}\nvalidation: ${result.validation?.ok ? "ok" : "error"}`;
+}
+
+async function loadRuntimePlan() {
+  const payload = await request("/api/knolet/runtime/plan", {
+    method: "POST",
+    body: JSON.stringify(bindingPayload()),
+  });
+  renderRuntimePlanPreview(payload);
+  logAction(
+    `Runtime plan preview 완료: ${payload.plan?.status || "unknown"}, steps ${payload.plan?.summary?.stepsCount || 0}개.`,
+  );
+}
+
+async function saveRuntimePlan() {
+  const result = await request("/api/knolet/runtime/plan/save", {
+    method: "POST",
+    body: JSON.stringify(bindingPayload()),
+  });
+  await loadRuntimePlan();
+  elements.previewTitle.textContent = "runtime-plan.json 저장 완료";
+  elements.previewBody.textContent = `${result.path}\nstatus: ${result.status}\nrun: ${result.runLog?.id || ""}`;
+  logAction(`Runtime plan 저장 완료: ${result.path}`);
 }
 
 async function loadLauncherHandoff() {
@@ -1375,6 +1508,12 @@ elements.refreshImportPreview.addEventListener("click", () =>
 elements.saveKnoletSpec.addEventListener("click", () =>
   runAction(elements.saveKnoletSpec, saveKnoletSpec),
 );
+elements.refreshRuntimePlan.addEventListener("click", () =>
+  runAction(elements.refreshRuntimePlan, loadRuntimePlan),
+);
+elements.saveRuntimePlan.addEventListener("click", () =>
+  runAction(elements.saveRuntimePlan, saveRuntimePlan),
+);
 elements.refreshRuns.addEventListener("click", () => runAction(elements.refreshRuns, loadRuns));
 elements.runForm.addEventListener("submit", createRun);
 elements.saveRunOutputs.addEventListener("click", () =>
@@ -1415,6 +1554,9 @@ loadWorkflowBlueprint().catch((error) => {
 });
 loadImportPreview().catch((error) => {
   elements.importPreview.innerHTML = `<p class="empty">${error.message}</p>`;
+});
+loadRuntimePlan().catch((error) => {
+  elements.runtimePlanPreview.innerHTML = `<p class="empty">${error.message}</p>`;
 });
 loadLauncherHandoff().catch((error) => {
   elements.launcherHandoff.innerHTML = `<p class="empty">${error.message}</p>`;

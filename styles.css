@@ -545,6 +545,67 @@ textarea {
   align-items: center;
 }
 
+.runtime-plan-preview {
+  display: grid;
+  gap: 16px;
+  padding: 16px;
+}
+
+.runtime-plan-section {
+  display: grid;
+  gap: 10px;
+}
+
+.runtime-plan-section h3,
+.runtime-plan-grid h3 {
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.runtime-participants,
+.runtime-plan-grid {
+  display: grid;
+  gap: 8px;
+}
+
+.runtime-participants {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.runtime-plan-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.runtime-participant {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+
+.runtime-participant span,
+.runtime-participant li span {
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.runtime-participant ul {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.runtime-participant li {
+  display: grid;
+  gap: 3px;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+
 .import-asset-group {
   display: grid;
   gap: 8px;
@@ -1379,6 +1440,8 @@ code {
   .knowledge-source-grid,
   .knowledge-source-form,
   .skill-binding-row,
+  .runtime-participants,
+  .runtime-plan-grid,
   .diagnostic-columns,
   .diagnostics-grid,
   .diagnostics-body,

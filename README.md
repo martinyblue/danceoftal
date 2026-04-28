@@ -241,6 +241,11 @@ can save the current preview to `.dance-of-tal/knolet.json` or repo-root
 `knolet.json`. Supported source types are `workspace_document`, `uploaded_file`,
 `registry_asset`, and `manual_note`.
 
+The `Runtime Plan Preview` lowers the current bound KnoletSpec into
+`.dance-of-tal/runtime-plan.json`: runtime participants, persona/skill/source
+connections, workflow edges, execution steps, diagnostics, and a planned run log
+skeleton.
+
 ## Operator Flow
 
 Use the Manager at <http://127.0.0.1:8080> in this order:
@@ -256,12 +261,15 @@ Use the Manager at <http://127.0.0.1:8080> in this order:
    into a validated KnoletSpec preview.
 7. In `Knowledge Binding`, connect each SkillBlock to `workspace_documents` or a
    new KnowledgeSource, then save `knolet.json` when validation looks right.
-8. Use the generated OpenCode handoff prompt as the starting point for a real
+8. Use `Runtime Plan Preview` to confirm agent/persona/skill/source wiring,
+   workflow edges, execution steps, and runtime diagnostics, then save
+   `runtime-plan.json`.
+9. Use the generated OpenCode handoff prompt as the starting point for a real
    `Document to Knolet App` run.
-9. Save the run inputs and captured outputs in `Workflow 산출물 저장`.
-10. Run `품질 검토` to catch missing or underdeveloped workflow outputs.
-11. Use `공유 패키지 만들기` to produce a Markdown handoff package.
-12. Use `0.2.0 통합 런처` as the starting point for DOT Studio, OpenCode,
+10. Save the run inputs and captured outputs in `Workflow 산출물 저장`.
+11. Run `품질 검토` to catch missing or underdeveloped workflow outputs.
+12. Use `공유 패키지 만들기` to produce a Markdown handoff package.
+13. Use `0.2.0 통합 런처` as the starting point for DOT Studio, OpenCode,
     Registry, and GitHub status checks.
 
 The Manager is a custom local operator UI for this repository. The official
@@ -330,9 +338,9 @@ of the current local Manager, DOT Studio, OpenCode, and Registry foundation.
 - `0.3.3` Knowledge Binding: added KnowledgeSource types, SkillBlock
   `binds_to` editing, persisted binding-aware imports, and validation for
   unknown or incomplete knowledge source references.
-- `0.3.4` Workflow Runtime Interface: compile workflow participants and
-  one-way/both relations into an executable plan with run logs and validation
-  diagnostics.
+- `0.3.4` Workflow Runtime Interface: added a KnoletSpec-to-runtime-plan
+  compiler, Manager runtime preview, runtime diagnostics, execution steps, run
+  log skeletons, and `.dance-of-tal/runtime-plan.json` saving.
 - `0.3.5` Knolet Studio Graph Model: prepare Source, Skill, Persona, Agent,
   Workflow Step, Evaluation, Human Approval, and Output nodes for a future
   visual builder.
@@ -380,6 +388,9 @@ a package version bump plus a Git commit pushed to `martinyblue/danceoftal`.
 
 ## Version Notes
 
+- `0.3.4`: added the runtime plan compiler and Manager `Runtime Plan Preview`,
+  including participant skill/source views, workflow edge/step previews,
+  runtime diagnostics, and save support for `.dance-of-tal/runtime-plan.json`.
 - `0.3.3`: added Manager Knowledge Binding controls, import/save support for
   `knowledge.sources` and `skills[].binds_to`, binding completion summaries, and
   validation errors for unknown KnowledgeSource references.
