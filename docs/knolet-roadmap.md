@@ -352,6 +352,19 @@ installation. It lists template install actions, source rebinding requirements,
 fork metadata, package diagnostics, and blocks packages that would copy source
 documents.
 
+Implemented in `0.4.2`:
+
+- `lib/knolet/library-install-executor.js`
+- `GET/POST /api/knolet/library/install/execution`
+- `POST /api/knolet/library/install/execute`
+- Manager `Knolet Library Install Execution` preview/execute panel
+- `test/knolet-library-install-executor.test.js`
+
+The executor writes local installed template records, source binding records,
+and an installation manifest under `.dance-of-tal/library/<owner>/<stage>/`.
+Required source bindings must be confirmed before execution, and packages that
+copy source documents are refused.
+
 ## Phase 7: Product Backend
 
 Goal: prepare for real commercial use.

@@ -608,7 +608,8 @@ textarea {
 
 .graph-preview,
 .library-package-preview,
-.library-install-plan-preview {
+.library-install-plan-preview,
+.library-install-execution-preview {
   display: grid;
   gap: 16px;
   padding: 16px;

@@ -1,6 +1,6 @@
 # dance-of-tal Local Manager
 
-Version: `0.4.1`
+Version: `0.4.2`
 
 This repository contains a local-first manager for `dance-of-tal` style assets.
 It is built for the project owner, not first-time visitors. The local UI creates
@@ -181,6 +181,8 @@ dot-studio doctor . --verbose
 - preview a Library Install Plan under
   `.dance-of-tal/knolet-library-install-plan.json` before installing shared
   templates into a target workspace
+- execute a reviewed Library Install Plan into local library records under
+  `.dance-of-tal/library/<owner>/<stage>/`
 
 ## Knolet Product Direction
 
@@ -274,6 +276,10 @@ The `Knolet Library Install Plan` preview turns that package into reviewable
 template install actions plus KnowledgeSource rebinding steps. It is deliberately
 non-destructive: users can inspect what will be created and which sources need
 review before any future install executor writes templates into the workspace.
+
+The `Knolet Library Install Execution` step writes installed template records,
+source binding records, and an installation manifest under `.dance-of-tal/library/`.
+It refuses to execute blocked plans or packages that copy source documents.
 
 ## Operator Flow
 

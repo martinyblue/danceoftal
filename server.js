@@ -11,6 +11,7 @@ const { compileKnoletRuntimePlan } = require("./lib/knolet/runtime-plan");
 const { compileKnoletGraphModel } = require("./lib/knolet/graph-model");
 const { compileKnoletLibraryPackage } = require("./lib/knolet/library-package");
 const { compileKnoletLibraryInstallPlan } = require("./lib/knolet/library-install-plan");
+const { compileKnoletLibraryInstallExecution } = require("./lib/knolet/library-install-executor");
 
 const root = process.cwd();
 const workspaceRoot = path.join(root, ".dance-of-tal");
@@ -23,6 +24,7 @@ const knoletGraphPath = path.join(workspaceRoot, "knolet-graph.json");
 const knoletGraphLayoutPath = path.join(workspaceRoot, "knolet-graph-layout.json");
 const knoletLibraryPackagePath = path.join(workspaceRoot, "knolet-library-package.json");
 const knoletLibraryInstallPlanPath = path.join(workspaceRoot, "knolet-library-install-plan.json");
+const knoletLibraryInstallExecutionPath = path.join(workspaceRoot, "knolet-library-install-execution.json");
 const port = Number(process.env.PORT || 8080);
 const studioUrl = process.env.DOT_STUDIO_URL || "http://127.0.0.1:43110";
 const opencodeUrl = process.env.OPENCODE_URL || "http://127.0.0.1:43120";
@@ -1548,6 +1550,75 @@ async function saveLibraryInstallPlan(payload = {}) {
   };
 }
 
+async function libraryInstallExecutionPreview(payload = {}) {
+  const packagePreview = await libraryPackagePreview(payload);
+  const installPlan = compileKnoletLibraryInstallPlan(packagePreview.package, {
+    targetOwner: payload.targetOwner || "martinyblue",
+    targetStage: payload.targetStage || "local",
+  });
+  const execution = compileKnoletLibraryInstallExecution(installPlan, packagePreview.package, {
+    sourceBindings: payload.sourceBindings || {},
+  });
+  return {
+    execution,
+    installPlanSummary: installPlan.summary,
+    packageSummary: packagePreview.package.summary,
+    diagnosticsByLevel: {
+      error: execution.diagnostics.filter((item) => item.level === "error"),
+      warning: execution.diagnostics.filter((item) => item.level === "warning"),
+    },
+  };
+}
+
+function resolveWorkspaceWritePath(relativePath) {
+  const targetPath = path.resolve(root, relativePath);
+  const workspacePath = path.resolve(workspaceRoot);
+  if (!targetPath.startsWith(`${workspacePath}${path.sep}`)) {
+    throw new Error(`Refusing to write outside .dance-of-tal: ${relativePath}`);
+  }
+  return targetPath;
+}
+
+async function executeLibraryInstall(payload = {}) {
+  const preview = await libraryInstallExecutionPreview(payload);
+  if (preview.execution.status !== "ready_to_write") {
+    return {
+      ok: false,
+      status: preview.execution.status,
+      summary: preview.execution.summary,
+      diagnosticsByLevel: preview.diagnosticsByLevel,
+      writes: [],
+      execution: preview.execution,
+    };
+  }
+
+  const written = [];
+  for (const write of preview.execution.writes) {
+    const targetPath = resolveWorkspaceWritePath(write.path);
+    await fs.mkdir(path.dirname(targetPath), { recursive: true });
+    await fs.writeFile(targetPath, `${JSON.stringify(write.record, null, 2)}\n`);
+    written.push({
+      kind: write.kind,
+      path: path.relative(root, targetPath),
+      action_id: write.action_id,
+    });
+  }
+
+  await fs.writeFile(knoletLibraryInstallExecutionPath, `${JSON.stringify(preview.execution, null, 2)}\n`);
+  return {
+    ok: true,
+    status: "installed",
+    path: path.relative(root, knoletLibraryInstallExecutionPath),
+    summary: preview.execution.summary,
+    diagnosticsByLevel: preview.diagnosticsByLevel,
+    writes: written,
+    execution: {
+      ...preview.execution,
+      status: "installed",
+    },
+  };
+}
+
 function normalizeGraphLayoutPositions(value = {}) {
   const positions = {};
   for (const [nodeId, position] of Object.entries(value || {})) {
@@ -2361,6 +2432,23 @@ async function route(request, response) {
   if (url.pathname === "/api/knolet/library/install-plan/save" && request.method === "POST") {
     const payload = await parseBody(request);
     send(response, 200, await saveLibraryInstallPlan(payload));
+    return;
+  }
+
+  if (url.pathname === "/api/knolet/library/install/execution" && request.method === "GET") {
+    send(response, 200, await libraryInstallExecutionPreview());
+    return;
+  }
+
+  if (url.pathname === "/api/knolet/library/install/execution" && request.method === "POST") {
+    const payload = await parseBody(request);
+    send(response, 200, await libraryInstallExecutionPreview(payload));
+    return;
+  }
+
+  if (url.pathname === "/api/knolet/library/install/execute" && request.method === "POST") {
+    const payload = await parseBody(request);
+    send(response, 200, await executeLibraryInstall(payload));
     return;
   }
 
