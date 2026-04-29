@@ -11,6 +11,7 @@ const state = {
   lastLibraryInventory: null,
   lastProductBackendReadiness: null,
   lastProductBackendContract: null,
+  lastProductBackendAdapter: null,
   librarySourceBindings: {},
   selectedGraphNodeId: "",
   graphLayout: null,
@@ -163,6 +164,8 @@ const elements = {
   productBackendReadiness: document.querySelector("#productBackendReadiness"),
   refreshProductBackendContract: document.querySelector("#refreshProductBackendContract"),
   productBackendContract: document.querySelector("#productBackendContract"),
+  refreshProductBackendAdapter: document.querySelector("#refreshProductBackendAdapter"),
+  productBackendAdapter: document.querySelector("#productBackendAdapter"),
   refreshRuns: document.querySelector("#refreshRuns"),
   runForm: document.querySelector("#runForm"),
   runTitle: document.querySelector("#runTitle"),
@@ -2113,6 +2116,60 @@ function renderProductBackendContract(payload) {
   `;
 }
 
+function renderProductBackendAdapter(payload) {
+  state.lastProductBackendAdapter = payload;
+  const summary = payload.summary || {};
+  const statusState = summary.blockedCount ? "error" : summary.localPassthroughCount ? "warning" : "ok";
+  const cards = [
+    ["Status", payload.status || "unknown"],
+    ["Plans", summary.planCount || 0],
+    ["Ready", summary.readyCount || 0],
+    ["Blocked", summary.blockedCount || 0],
+    ["Local pass", summary.localPassthroughCount || 0],
+  ]
+    .map(
+      ([label, value]) => `
+        <article class="import-summary-card" data-state="${label === "Status" || label === "Blocked" ? statusState : "ok"}">
+          <span>${escapeHtml(label)}</span>
+          <strong>${escapeHtml(value)}</strong>
+        </article>
+      `,
+    )
+    .join("");
+  const plans = (payload.plans || [])
+    .map(
+      (plan) => `
+        <li data-required="${plan.status === "blocked" ? "true" : "false"}">
+          <strong>${escapeHtml(plan.kind)}</strong>
+          <span>${escapeHtml(plan.status)} / ${escapeHtml(plan.reason)}</span>
+          <small>${escapeHtml(plan.detail)}</small>
+          <code>${escapeHtml(plan.endpoint?.method || "")} ${escapeHtml(plan.endpoint?.url || plan.endpoint?.path || "")}</code>
+        </li>
+      `,
+    )
+    .join("");
+  const adapterJson = JSON.stringify(payload, null, 2);
+
+  elements.productBackendAdapter.innerHTML = `
+    <div class="import-preview__summary">
+      <div>
+        <strong>Product backend adapter: ${escapeHtml(payload.status || "unknown")}</strong>
+        <p>server write를 보내기 전 readiness, contract, required fields, dry-run/local passthrough 상태를 판정합니다.</p>
+      </div>
+      <span class="asset-pill" data-state="${statusState}">${summary.blockedCount ? "blocked" : "guarded"}</span>
+    </div>
+    <div class="import-summary-grid graph-summary-grid">${cards}</div>
+    <div class="runtime-plan-section">
+      <h3>Write plans</h3>
+      <ul class="next-step-list">${plans}</ul>
+    </div>
+    <details class="spec-preview">
+      <summary>Product backend adapter JSON 전체 보기</summary>
+      <pre><code>${escapeHtml(adapterJson)}</code></pre>
+    </details>
+  `;
+}
+
 function selectGraphNode(nodeId) {
   const graph = state.lastGraphPreview?.graph || {};
   const node = (graph.nodes || []).find((item) => item.id === nodeId);
@@ -2537,6 +2594,14 @@ async function loadProductBackendContract() {
   renderProductBackendContract(payload);
   logAction(
     `Product backend contract 확인: ${payload.summary?.endpointCount || 0} endpoints, blocked ${payload.summary?.blockedEndpointCount || 0}개.`,
+  );
+}
+
+async function loadProductBackendAdapter() {
+  const payload = await request("/api/knolet/product-backend/adapter");
+  renderProductBackendAdapter(payload);
+  logAction(
+    `Product backend adapter 확인: ${payload.summary?.planCount || 0} plans, blocked ${payload.summary?.blockedCount || 0}개.`,
   );
 }
 
@@ -2965,6 +3030,9 @@ elements.refreshProductBackendReadiness.addEventListener("click", () =>
 elements.refreshProductBackendContract.addEventListener("click", () =>
   runAction(elements.refreshProductBackendContract, loadProductBackendContract),
 );
+elements.refreshProductBackendAdapter.addEventListener("click", () =>
+  runAction(elements.refreshProductBackendAdapter, loadProductBackendAdapter),
+);
 elements.refreshRuns.addEventListener("click", () => runAction(elements.refreshRuns, loadRuns));
 elements.runForm.addEventListener("submit", createRun);
 elements.saveRunOutputs.addEventListener("click", () =>
@@ -3029,6 +3097,9 @@ loadProductBackendReadiness().catch((error) => {
 });
 loadProductBackendContract().catch((error) => {
   elements.productBackendContract.innerHTML = `<p class="empty">${error.message}</p>`;
+});
+loadProductBackendAdapter().catch((error) => {
+  elements.productBackendAdapter.innerHTML = `<p class="empty">${error.message}</p>`;
 });
 loadLauncherHandoff().catch((error) => {
   elements.launcherHandoff.innerHTML = `<p class="empty">${error.message}</p>`;

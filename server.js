@@ -15,6 +15,7 @@ const { compileKnoletLibraryInstallExecution } = require("./lib/knolet/library-i
 const { readKnoletLibraryInventory } = require("./lib/knolet/library-inventory");
 const { readProductBackendReadiness } = require("./lib/knolet/product-backend-readiness");
 const { compileProductBackendContract } = require("./lib/knolet/product-backend-contract");
+const { previewProductBackendAdapter } = require("./lib/knolet/product-backend-adapter");
 
 const root = process.cwd();
 const workspaceRoot = path.join(root, ".dance-of-tal");
@@ -1643,6 +1644,12 @@ async function productBackendContract() {
   return compileProductBackendContract(readiness);
 }
 
+async function productBackendAdapter() {
+  const readiness = await productBackendReadiness();
+  const contract = compileProductBackendContract(readiness);
+  return previewProductBackendAdapter(readiness, contract);
+}
+
 function normalizeGraphLayoutPositions(value = {}) {
   const positions = {};
   for (const [nodeId, position] of Object.entries(value || {})) {
@@ -2488,6 +2495,11 @@ async function route(request, response) {
 
   if (url.pathname === "/api/knolet/product-backend/contract" && request.method === "GET") {
     send(response, 200, await productBackendContract());
+    return;
+  }
+
+  if (url.pathname === "/api/knolet/product-backend/adapter" && request.method === "GET") {
+    send(response, 200, await productBackendAdapter());
     return;
   }
 

@@ -624,7 +624,8 @@ textarea {
 .library-install-execution-preview,
 .library-inventory,
 .product-backend-readiness,
-.product-backend-contract {
+.product-backend-contract,
+.product-backend-adapter {
   display: grid;
   gap: 16px;
   padding: 16px;

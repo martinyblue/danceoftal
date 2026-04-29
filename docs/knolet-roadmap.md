@@ -433,9 +433,20 @@ publish intents. It carries idempotency scopes, required request/response
 fields, environment gates, migration order, and endpoint readiness derived from
 the `0.5.0` readiness report.
 
+Implemented in `0.5.2`:
+
+- `lib/knolet/product-backend-adapter.js`
+- `GET /api/knolet/product-backend/adapter`
+- Manager `Guarded Server Write Adapter` panel
+- `test/knolet-product-backend-adapter.test.js`
+
+The adapter layer plans product backend writes without changing existing local
+save behavior. Development mode becomes local passthrough, blocked production
+readiness prevents network writes, server-backed readiness can dry-run, and
+ready writes can be sent through an injected fetch implementation.
+
 Next `0.5.x` work:
 
-- add a guarded server-backed write adapter
 - route save/execute endpoints through the adapter without breaking local-first
   development mode
 - add team workspace permission checks and publish governance receipts
