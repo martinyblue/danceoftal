@@ -1,6 +1,6 @@
 # dance-of-tal Local Manager
 
-Version: `0.5.2`
+Version: `0.5.3`
 
 This repository contains a local-first manager for `dance-of-tal` style assets.
 It is built for the project owner, not first-time visitors. The local UI creates
@@ -195,6 +195,9 @@ dot-studio doctor . --verbose
   intents before adding the server write adapter
 - preview the `0.5.2` guarded server write adapter gate for local passthrough,
   production blockers, dry-run plans, and ready-to-send product backend writes
+- route key save/execute responses through the guarded product backend adapter
+  while preserving development local-first writes and blocking unsafe production
+  local writes
 
 ## Knolet Product Direction
 
@@ -425,9 +428,7 @@ of the current local Manager, DOT Studio, OpenCode, and Registry foundation.
 
 Next implementation order for `0.5.x`:
 
-1. Route save/execute endpoints through the adapter while preserving
-   development local-first behavior.
-2. Add team workspace permission checks and publish governance receipts.
+1. Add team workspace permission checks and publish governance receipts.
 
 Historical implementation order for `0.3.0`:
 
@@ -466,6 +467,11 @@ a package version bump plus a Git commit pushed to `martinyblue/danceoftal`.
 
 ## Version Notes
 
+- `0.5.3`: routed KnoletSpec, RuntimePlan, Graph, Library Package, and Library
+  Install execution save paths through the guarded product backend adapter,
+  added product backend payload builders, surfaced backend gate results in
+  Manager save messages, and blocked production local writes when the adapter is
+  blocked.
 - `0.5.2`: added the guarded Product Backend Adapter with local passthrough,
   production blocked states, dry-run planning, ready-to-send execution through
   injected fetch, Manager API/panel, and tests for required-field validation.

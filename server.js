@@ -15,7 +15,16 @@ const { compileKnoletLibraryInstallExecution } = require("./lib/knolet/library-i
 const { readKnoletLibraryInventory } = require("./lib/knolet/library-inventory");
 const { readProductBackendReadiness } = require("./lib/knolet/product-backend-readiness");
 const { compileProductBackendContract } = require("./lib/knolet/product-backend-contract");
-const { previewProductBackendAdapter } = require("./lib/knolet/product-backend-adapter");
+const {
+  executeProductBackendWrite,
+  planProductBackendWrite,
+  previewProductBackendAdapter,
+} = require("./lib/knolet/product-backend-adapter");
+const {
+  libraryInstallReceiptPayload,
+  publishIntentPayload,
+  workspaceSnapshotPayload,
+} = require("./lib/knolet/product-backend-payloads");
 
 const root = process.cwd();
 const workspaceRoot = path.join(root, ".dance-of-tal");
@@ -1423,12 +1432,33 @@ async function saveKnoletImport(payload = {}) {
   const workspacePath = resolveWorkspaceInput(payload.path || ".dance-of-tal");
   const targetPath = resolveKnoletSaveTarget(payload.target || "workspace");
   const preview = await importDotWorkspacePreview(workspacePath, payload);
+  const productBackendWrite = await guardedProductBackendWrite(
+    "workspace_snapshot",
+    workspaceSnapshotPayload({
+      snapshotId: `knolet_spec_${Date.now()}`,
+      spec: preview.spec,
+      diagnostics: preview.diagnostics,
+    }),
+  );
+  if (productBackendBlocksLocalWrite(productBackendWrite)) {
+    return {
+      ok: false,
+      status: "blocked_by_product_backend",
+      productBackendWrite,
+      summary: preview.summary,
+      validation: preview.validation,
+      diagnosticsByLevel: preview.diagnosticsByLevel,
+      nextSteps: preview.nextSteps,
+    };
+  }
   await fs.mkdir(path.dirname(targetPath), { recursive: true });
   await fs.writeFile(targetPath, `${JSON.stringify(preview.spec, null, 2)}\n`);
   return {
     ok: true,
+    status: "saved",
     path: path.relative(root, targetPath),
     target: targetPath === knoletRootSpecPath ? "repo-root" : "workspace",
+    productBackendWrite,
     summary: preview.summary,
     validation: preview.validation,
     diagnosticsByLevel: preview.diagnosticsByLevel,
@@ -1452,6 +1482,24 @@ async function runtimePlanPreview(payload = {}) {
 
 async function saveRuntimePlan(payload = {}) {
   const preview = await runtimePlanPreview(payload);
+  const productBackendWrite = await guardedProductBackendWrite(
+    "workspace_snapshot",
+    workspaceSnapshotPayload({
+      snapshotId: `runtime_plan_${Date.now()}`,
+      runtimePlan: preview.plan,
+      diagnostics: preview.plan.diagnostics,
+    }),
+  );
+  if (productBackendBlocksLocalWrite(productBackendWrite)) {
+    return {
+      ok: false,
+      status: "blocked_by_product_backend",
+      productBackendWrite,
+      summary: preview.plan.summary,
+      diagnosticsByLevel: preview.diagnosticsByLevel,
+      runLog: preview.plan.run_log,
+    };
+  }
   await fs.mkdir(path.dirname(runtimePlanPath), { recursive: true });
   await fs.writeFile(runtimePlanPath, `${JSON.stringify(preview.plan, null, 2)}\n`);
   return {
@@ -1459,6 +1507,7 @@ async function saveRuntimePlan(payload = {}) {
     path: path.relative(root, runtimePlanPath),
     summary: preview.plan.summary,
     status: preview.plan.status,
+    productBackendWrite,
     diagnosticsByLevel: preview.diagnosticsByLevel,
     runLog: preview.plan.run_log,
   };
@@ -1484,6 +1533,23 @@ async function graphModelPreview(payload = {}) {
 
 async function saveGraphModel(payload = {}) {
   const preview = await graphModelPreview(payload);
+  const productBackendWrite = await guardedProductBackendWrite(
+    "workspace_snapshot",
+    workspaceSnapshotPayload({
+      snapshotId: `graph_model_${Date.now()}`,
+      graphModel: preview.graph,
+      diagnostics: preview.graph.diagnostics,
+    }),
+  );
+  if (productBackendBlocksLocalWrite(productBackendWrite)) {
+    return {
+      ok: false,
+      status: "blocked_by_product_backend",
+      productBackendWrite,
+      summary: preview.graph.summary,
+      diagnosticsByLevel: preview.diagnosticsByLevel,
+    };
+  }
   await fs.mkdir(path.dirname(knoletGraphPath), { recursive: true });
   await fs.writeFile(knoletGraphPath, `${JSON.stringify(preview.graph, null, 2)}\n`);
   return {
@@ -1491,6 +1557,7 @@ async function saveGraphModel(payload = {}) {
     path: path.relative(root, knoletGraphPath),
     summary: preview.graph.summary,
     status: preview.graph.status,
+    productBackendWrite,
     diagnosticsByLevel: preview.diagnosticsByLevel,
   };
 }
@@ -1515,6 +1582,29 @@ async function libraryPackagePreview(payload = {}) {
 
 async function saveLibraryPackage(payload = {}) {
   const preview = await libraryPackagePreview(payload);
+  const productBackendWrite = await guardedProductBackendWrite(
+    "publish_intent",
+    publishIntentPayload({
+      publishIntentId: `library_package_${Date.now()}`,
+      artifactRefs: [
+        {
+          kind: "library_package",
+          id: preview.package.id,
+          status: preview.package.status,
+        },
+      ],
+      sharePolicy: preview.package.share_policy,
+    }),
+  );
+  if (productBackendBlocksLocalWrite(productBackendWrite)) {
+    return {
+      ok: false,
+      status: "blocked_by_product_backend",
+      productBackendWrite,
+      summary: preview.package.summary,
+      diagnosticsByLevel: preview.diagnosticsByLevel,
+    };
+  }
   await fs.mkdir(path.dirname(knoletLibraryPackagePath), { recursive: true });
   await fs.writeFile(knoletLibraryPackagePath, `${JSON.stringify(preview.package, null, 2)}\n`);
   return {
@@ -1522,6 +1612,7 @@ async function saveLibraryPackage(payload = {}) {
     path: path.relative(root, knoletLibraryPackagePath),
     summary: preview.package.summary,
     status: preview.package.status,
+    productBackendWrite,
     diagnosticsByLevel: preview.diagnosticsByLevel,
   };
 }
@@ -1597,6 +1688,25 @@ async function executeLibraryInstall(payload = {}) {
     };
   }
 
+  const productBackendWrite = await guardedProductBackendWrite(
+    "library_install_receipt",
+    libraryInstallReceiptPayload({
+      installationId: `library_install_${Date.now()}`,
+      execution: preview.execution,
+    }),
+  );
+  if (productBackendBlocksLocalWrite(productBackendWrite)) {
+    return {
+      ok: false,
+      status: "blocked_by_product_backend",
+      summary: preview.execution.summary,
+      productBackendWrite,
+      diagnosticsByLevel: preview.diagnosticsByLevel,
+      writes: [],
+      execution: preview.execution,
+    };
+  }
+
   const written = [];
   for (const write of preview.execution.writes) {
     const targetPath = resolveWorkspaceWritePath(write.path);
@@ -1615,6 +1725,7 @@ async function executeLibraryInstall(payload = {}) {
     status: "installed",
     path: path.relative(root, knoletLibraryInstallExecutionPath),
     summary: preview.execution.summary,
+    productBackendWrite,
     diagnosticsByLevel: preview.diagnosticsByLevel,
     writes: written,
     execution: {
@@ -1648,6 +1759,42 @@ async function productBackendAdapter() {
   const readiness = await productBackendReadiness();
   const contract = compileProductBackendContract(readiness);
   return previewProductBackendAdapter(readiness, contract);
+}
+
+async function guardedProductBackendWrite(kind, payload) {
+  const readiness = await productBackendReadiness();
+  const contract = compileProductBackendContract(readiness);
+  const writeEnabled = process.env.DANCEOFTAL_BACKEND_WRITE_ENABLED === "true";
+
+  if (!writeEnabled) {
+    const plan = planProductBackendWrite(kind, payload, {
+      readiness,
+      contract,
+      dryRun: true,
+    });
+    return {
+      ok: plan.status !== "blocked",
+      status: plan.status,
+      plan,
+      response: null,
+      networkEnabled: false,
+    };
+  }
+
+  return {
+    ...(await executeProductBackendWrite(kind, payload, {
+      readiness,
+      contract,
+      authorization: process.env.DANCEOFTAL_DATA_API_TOKEN
+        ? `Bearer ${process.env.DANCEOFTAL_DATA_API_TOKEN}`
+        : undefined,
+    })),
+    networkEnabled: true,
+  };
+}
+
+function productBackendBlocksLocalWrite(write) {
+  return write?.status === "blocked" && write?.plan?.mode === "production";
 }
 
 function normalizeGraphLayoutPositions(value = {}) {

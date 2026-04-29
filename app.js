@@ -646,6 +646,14 @@ function diagnosticItems(items) {
     .join("");
 }
 
+function productBackendWriteLine(result) {
+  const write = result?.productBackendWrite;
+  if (!write) {
+    return "";
+  }
+  return `\nbackend: ${write.status} / ${write.plan?.reason || "gate"}`;
+}
+
 function assetGroup(title, assets) {
   const rows = (assets || [])
     .map(
@@ -2452,7 +2460,7 @@ async function saveKnoletSpec() {
     renderImportPreview(preview);
   }
   elements.previewTitle.textContent = "knolet.json 저장 완료";
-  elements.previewBody.textContent = `${result.path}\nvalidation: ${result.validation?.ok ? "ok" : "error"}`;
+  elements.previewBody.textContent = `${result.path || "blocked"}\nvalidation: ${result.validation?.ok ? "ok" : "error"}${productBackendWriteLine(result)}`;
 }
 
 async function loadRuntimePlan() {
@@ -2473,7 +2481,7 @@ async function saveRuntimePlan() {
   });
   await loadRuntimePlan();
   elements.previewTitle.textContent = "runtime-plan.json 저장 완료";
-  elements.previewBody.textContent = `${result.path}\nstatus: ${result.status}\nrun: ${result.runLog?.id || ""}`;
+  elements.previewBody.textContent = `${result.path || "blocked"}\nstatus: ${result.status}\nrun: ${result.runLog?.id || ""}${productBackendWriteLine(result)}`;
   logAction(`Runtime plan 저장 완료: ${result.path}`);
 }
 
@@ -2496,7 +2504,7 @@ async function saveGraphModel() {
   });
   await loadGraphPreview();
   elements.previewTitle.textContent = "knolet-graph.json 저장 완료";
-  elements.previewBody.textContent = `${result.path}\nstatus: ${result.status}\nnodes: ${result.summary?.nodeCount || 0}\nedges: ${result.summary?.edgeCount || 0}`;
+  elements.previewBody.textContent = `${result.path || "blocked"}\nstatus: ${result.status}\nnodes: ${result.summary?.nodeCount || 0}\nedges: ${result.summary?.edgeCount || 0}${productBackendWriteLine(result)}`;
   logAction(`Knolet graph 저장 완료: ${result.path}`);
 }
 
@@ -2518,7 +2526,7 @@ async function saveLibraryPackage() {
   });
   await loadLibraryPackage();
   elements.previewTitle.textContent = "knolet-library-package.json 저장 완료";
-  elements.previewBody.textContent = `${result.path}\nstatus: ${result.status}\ntemplates: ${result.summary?.templateCount || 0}`;
+  elements.previewBody.textContent = `${result.path || "blocked"}\nstatus: ${result.status}\ntemplates: ${result.summary?.templateCount || 0}${productBackendWriteLine(result)}`;
   logAction(`Knolet library package 저장 완료: ${result.path}`);
 }
 
@@ -2564,8 +2572,8 @@ async function executeLibraryInstall() {
   await loadLibraryInventory();
   elements.previewTitle.textContent = result.ok ? "library install 완료" : "library install 차단됨";
   elements.previewBody.textContent = result.ok
-    ? `${result.path}\nstatus: ${result.status}\nwrites: ${result.writes?.length || 0}`
-    : `status: ${result.status}\nerrors: ${result.summary?.errorCount || 0}`;
+    ? `${result.path}\nstatus: ${result.status}\nwrites: ${result.writes?.length || 0}${productBackendWriteLine(result)}`
+    : `status: ${result.status}\nerrors: ${result.summary?.errorCount || 0}${productBackendWriteLine(result)}`;
   logAction(
     result.ok
       ? `Knolet library install 실행 완료: ${result.writes?.length || 0}개 파일 기록.`

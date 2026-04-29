@@ -445,10 +445,21 @@ save behavior. Development mode becomes local passthrough, blocked production
 readiness prevents network writes, server-backed readiness can dry-run, and
 ready writes can be sent through an injected fetch implementation.
 
+Implemented in `0.5.3`:
+
+- `lib/knolet/product-backend-payloads.js`
+- guarded adapter routing from key save/execute endpoints
+- Manager save messages include product backend gate results
+- `test/knolet-product-backend-payloads.test.js`
+
+KnoletSpec, RuntimePlan, Graph, Library Package, and Library Install execution
+paths now build product backend payloads and pass through the guarded adapter.
+Development mode still writes local files, server-backed mode can dry-run or
+send through the adapter, and production mode refuses unsafe local writes when
+the product backend gate is blocked.
+
 Next `0.5.x` work:
 
-- route save/execute endpoints through the adapter without breaking local-first
-  development mode
 - add team workspace permission checks and publish governance receipts
 
 ## Codex Implementation Prompt Shape
