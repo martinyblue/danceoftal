@@ -25,6 +25,7 @@ const {
   publishIntentPayload,
   workspaceSnapshotPayload,
 } = require("./lib/knolet/product-backend-payloads");
+const { readProductPermissions } = require("./lib/knolet/product-permissions");
 
 const root = process.cwd();
 const workspaceRoot = path.join(root, ".dance-of-tal");
@@ -1761,6 +1762,10 @@ async function productBackendAdapter() {
   return previewProductBackendAdapter(readiness, contract);
 }
 
+async function productPermissions() {
+  return readProductPermissions();
+}
+
 async function guardedProductBackendWrite(kind, payload) {
   const readiness = await productBackendReadiness();
   const contract = compileProductBackendContract(readiness);
@@ -2647,6 +2652,11 @@ async function route(request, response) {
 
   if (url.pathname === "/api/knolet/product-backend/adapter" && request.method === "GET") {
     send(response, 200, await productBackendAdapter());
+    return;
+  }
+
+  if (url.pathname === "/api/knolet/product-backend/permissions" && request.method === "GET") {
+    send(response, 200, await productPermissions());
     return;
   }
 

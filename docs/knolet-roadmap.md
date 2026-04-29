@@ -458,9 +458,21 @@ Development mode still writes local files, server-backed mode can dry-run or
 send through the adapter, and production mode refuses unsafe local writes when
 the product backend gate is blocked.
 
+Implemented in `0.5.4`:
+
+- `lib/knolet/product-permissions.js`
+- `GET /api/knolet/product-backend/permissions`
+- Manager `Product Permission Checks` panel
+- `test/knolet-product-permissions.test.js`
+
+The permission layer defines owner/admin/editor/viewer-style action checks for
+workspace writes, source binding confirmation, run log appends, library
+installs, and publish requests. Development mode remains advisory, while
+production mode requires an actor id and role before product writes.
+
 Next `0.5.x` work:
 
-- add team workspace permission checks and publish governance receipts
+- add publish governance receipts
 
 ## Codex Implementation Prompt Shape
 

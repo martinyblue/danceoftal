@@ -625,7 +625,8 @@ textarea {
 .library-inventory,
 .product-backend-readiness,
 .product-backend-contract,
-.product-backend-adapter {
+.product-backend-adapter,
+.product-permissions {
   display: grid;
   gap: 16px;
   padding: 16px;

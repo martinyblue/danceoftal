@@ -12,6 +12,7 @@ const state = {
   lastProductBackendReadiness: null,
   lastProductBackendContract: null,
   lastProductBackendAdapter: null,
+  lastProductPermissions: null,
   librarySourceBindings: {},
   selectedGraphNodeId: "",
   graphLayout: null,
@@ -166,6 +167,8 @@ const elements = {
   productBackendContract: document.querySelector("#productBackendContract"),
   refreshProductBackendAdapter: document.querySelector("#refreshProductBackendAdapter"),
   productBackendAdapter: document.querySelector("#productBackendAdapter"),
+  refreshProductPermissions: document.querySelector("#refreshProductPermissions"),
+  productPermissions: document.querySelector("#productPermissions"),
   refreshRuns: document.querySelector("#refreshRuns"),
   runForm: document.querySelector("#runForm"),
   runTitle: document.querySelector("#runTitle"),
@@ -2178,6 +2181,75 @@ function renderProductBackendAdapter(payload) {
   `;
 }
 
+function renderProductPermissions(payload) {
+  state.lastProductPermissions = payload;
+  const summary = payload.summary || {};
+  const statusState = summary.errorCount ? "error" : summary.warningCount ? "warning" : "ok";
+  const cards = [
+    ["Status", summary.status || "unknown"],
+    ["Allowed", summary.allowedCount || 0],
+    ["Blocked", summary.blockedCount || 0],
+    ["Actor", payload.actor?.id || "unset"],
+    ["Role", payload.actor?.role || "unset"],
+  ]
+    .map(
+      ([label, value]) => `
+        <article class="import-summary-card" data-state="${label === "Status" || label === "Blocked" ? statusState : "ok"}">
+          <span>${escapeHtml(label)}</span>
+          <strong>${escapeHtml(value)}</strong>
+        </article>
+      `,
+    )
+    .join("");
+  const checks = (payload.checks || [])
+    .map(
+      (check) => `
+        <li data-required="${check.state === "error" ? "true" : "false"}">
+          <strong>${escapeHtml(check.label)}</strong>
+          <span>${escapeHtml(check.allowed ? "allowed" : "blocked")} / requires ${escapeHtml(check.requiredRole)}</span>
+          <small>${escapeHtml(check.detail)}</small>
+          <code>${escapeHtml(check.key)} / ${escapeHtml(check.reason)}</code>
+        </li>
+      `,
+    )
+    .join("");
+  const errors = payload.diagnosticsByLevel?.error || [];
+  const warnings = payload.diagnosticsByLevel?.warning || [];
+  const permissionsJson = JSON.stringify(payload, null, 2);
+
+  elements.productPermissions.innerHTML = `
+    <div class="import-preview__summary">
+      <div>
+        <strong>Team workspace permissions: ${escapeHtml(summary.status || "unknown")}</strong>
+        <p>workspace write, source binding, run log, library install, publish request 권한을 actor role로 점검합니다.</p>
+      </div>
+      <span class="asset-pill" data-state="${statusState}">${summary.ready ? "ready" : "blocked"}</span>
+    </div>
+    <div class="import-summary-grid graph-summary-grid">${cards}</div>
+    <div class="runtime-plan-section">
+      <h3>Permission checks</h3>
+      <ul class="next-step-list">${checks}</ul>
+    </div>
+    <div class="runtime-plan-section">
+      <h3>Permission diagnostics</h3>
+      <div class="diagnostic-columns">
+        <div>
+          <h4>Error</h4>
+          <ul class="import-diagnostics">${diagnosticItems(errors)}</ul>
+        </div>
+        <div>
+          <h4>Warning</h4>
+          <ul class="import-diagnostics">${diagnosticItems(warnings)}</ul>
+        </div>
+      </div>
+    </div>
+    <details class="spec-preview">
+      <summary>Product permissions JSON 전체 보기</summary>
+      <pre><code>${escapeHtml(permissionsJson)}</code></pre>
+    </details>
+  `;
+}
+
 function selectGraphNode(nodeId) {
   const graph = state.lastGraphPreview?.graph || {};
   const node = (graph.nodes || []).find((item) => item.id === nodeId);
@@ -2613,6 +2685,14 @@ async function loadProductBackendAdapter() {
   );
 }
 
+async function loadProductPermissions() {
+  const payload = await request("/api/knolet/product-backend/permissions");
+  renderProductPermissions(payload);
+  logAction(
+    `Product permissions 확인: allowed ${payload.summary?.allowedCount || 0}개, blocked ${payload.summary?.blockedCount || 0}개.`,
+  );
+}
+
 async function saveGraphLayout() {
   const result = await request("/api/knolet/graph/layout", {
     method: "POST",
@@ -3041,6 +3121,9 @@ elements.refreshProductBackendContract.addEventListener("click", () =>
 elements.refreshProductBackendAdapter.addEventListener("click", () =>
   runAction(elements.refreshProductBackendAdapter, loadProductBackendAdapter),
 );
+elements.refreshProductPermissions.addEventListener("click", () =>
+  runAction(elements.refreshProductPermissions, loadProductPermissions),
+);
 elements.refreshRuns.addEventListener("click", () => runAction(elements.refreshRuns, loadRuns));
 elements.runForm.addEventListener("submit", createRun);
 elements.saveRunOutputs.addEventListener("click", () =>
@@ -3108,6 +3191,9 @@ loadProductBackendContract().catch((error) => {
 });
 loadProductBackendAdapter().catch((error) => {
   elements.productBackendAdapter.innerHTML = `<p class="empty">${error.message}</p>`;
+});
+loadProductPermissions().catch((error) => {
+  elements.productPermissions.innerHTML = `<p class="empty">${error.message}</p>`;
 });
 loadLauncherHandoff().catch((error) => {
   elements.launcherHandoff.innerHTML = `<p class="empty">${error.message}</p>`;
