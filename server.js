@@ -26,6 +26,10 @@ const {
   workspaceSnapshotPayload,
 } = require("./lib/knolet/product-backend-payloads");
 const { readProductPermissions } = require("./lib/knolet/product-permissions");
+const {
+  compilePublishGovernanceReceipt,
+  publishIntentFromLibraryPackage,
+} = require("./lib/knolet/publish-governance");
 
 const root = process.cwd();
 const workspaceRoot = path.join(root, ".dance-of-tal");
@@ -1766,6 +1770,24 @@ async function productPermissions() {
   return readProductPermissions();
 }
 
+async function productPublishGovernance() {
+  const readiness = await productBackendReadiness();
+  const permissions = await productPermissions();
+  let libraryPackage = null;
+  try {
+    if (await exists(knoletLibraryPackagePath)) {
+      libraryPackage = JSON.parse(await fs.readFile(knoletLibraryPackagePath, "utf8"));
+    }
+  } catch {
+    libraryPackage = null;
+  }
+  return compilePublishGovernanceReceipt({
+    readiness,
+    permissions,
+    intent: publishIntentFromLibraryPackage(libraryPackage),
+  });
+}
+
 async function guardedProductBackendWrite(kind, payload) {
   const readiness = await productBackendReadiness();
   const contract = compileProductBackendContract(readiness);
@@ -2657,6 +2679,11 @@ async function route(request, response) {
 
   if (url.pathname === "/api/knolet/product-backend/permissions" && request.method === "GET") {
     send(response, 200, await productPermissions());
+    return;
+  }
+
+  if (url.pathname === "/api/knolet/product-backend/publish-governance" && request.method === "GET") {
+    send(response, 200, await productPublishGovernance());
     return;
   }
 

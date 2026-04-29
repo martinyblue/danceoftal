@@ -470,9 +470,22 @@ workspace writes, source binding confirmation, run log appends, library
 installs, and publish requests. Development mode remains advisory, while
 production mode requires an actor id and role before product writes.
 
+Implemented in `0.5.5`:
+
+- `lib/knolet/publish-governance.js`
+- `GET /api/knolet/product-backend/publish-governance`
+- Manager `Publish Governance Receipt` panel
+- `test/knolet-publish-governance.test.js`
+
+The publish governance layer creates a receipt preview that checks actor
+permission, publish target, artifact references, source-copy policy, and product
+backend readiness before any share/publish flow proceeds.
+
 Next `0.5.x` work:
 
-- add publish governance receipts
+No additional local-only `0.5.x` scaffold is recommended before connecting a
+real product-owned backend. The next meaningful step is to supply actual auth,
+data API, storage, and team permission infrastructure.
 
 ## Codex Implementation Prompt Shape
 

@@ -13,6 +13,7 @@ const state = {
   lastProductBackendContract: null,
   lastProductBackendAdapter: null,
   lastProductPermissions: null,
+  lastPublishGovernance: null,
   librarySourceBindings: {},
   selectedGraphNodeId: "",
   graphLayout: null,
@@ -169,6 +170,8 @@ const elements = {
   productBackendAdapter: document.querySelector("#productBackendAdapter"),
   refreshProductPermissions: document.querySelector("#refreshProductPermissions"),
   productPermissions: document.querySelector("#productPermissions"),
+  refreshPublishGovernance: document.querySelector("#refreshPublishGovernance"),
+  publishGovernance: document.querySelector("#publishGovernance"),
   refreshRuns: document.querySelector("#refreshRuns"),
   runForm: document.querySelector("#runForm"),
   runTitle: document.querySelector("#runTitle"),
@@ -2250,6 +2253,90 @@ function renderProductPermissions(payload) {
   `;
 }
 
+function renderPublishGovernance(payload) {
+  state.lastPublishGovernance = payload;
+  const summary = payload.summary || {};
+  const statusState = summary.errorCount ? "error" : summary.warningCount ? "warning" : "ok";
+  const cards = [
+    ["Status", payload.status || "unknown"],
+    ["Artifacts", summary.artifactCount || 0],
+    ["Checks", summary.checkCount || 0],
+    ["Errors", summary.errorCount || 0],
+    ["Warnings", summary.warningCount || 0],
+  ]
+    .map(
+      ([label, value]) => `
+        <article class="import-summary-card" data-state="${label === "Status" || label === "Errors" ? statusState : "ok"}">
+          <span>${escapeHtml(label)}</span>
+          <strong>${escapeHtml(value)}</strong>
+        </article>
+      `,
+    )
+    .join("");
+  const checks = (payload.checks || [])
+    .map(
+      (check) => `
+        <li data-required="${check.state === "error" ? "true" : "false"}">
+          <strong>${escapeHtml(check.key)}</strong>
+          <span>${escapeHtml(check.state)}</span>
+          <small>${escapeHtml(check.detail)}</small>
+        </li>
+      `,
+    )
+    .join("");
+  const artifacts = (payload.receipt?.artifact_refs || [])
+    .map(
+      (artifact) => `
+        <li data-required="false">
+          <strong>${escapeHtml(artifact.kind)}</strong>
+          <span>${escapeHtml(artifact.id || "artifact")}</span>
+        </li>
+      `,
+    )
+    .join("");
+  const errors = payload.diagnosticsByLevel?.error || [];
+  const warnings = payload.diagnosticsByLevel?.warning || [];
+  const governanceJson = JSON.stringify(payload, null, 2);
+
+  elements.publishGovernance.innerHTML = `
+    <div class="import-preview__summary">
+      <div>
+        <strong>Publish governance receipt: ${escapeHtml(payload.status || "unknown")}</strong>
+        <p>publish/share 전에 actor, target, artifact refs, source copy policy, backend readiness를 receipt로 묶어 검토합니다.</p>
+      </div>
+      <span class="asset-pill" data-state="${statusState}">${payload.status || "receipt"}</span>
+    </div>
+    <div class="import-summary-grid graph-summary-grid">${cards}</div>
+    <div class="graph-layout">
+      <div>
+        <h3>Governance checks</h3>
+        <ul class="next-step-list">${checks}</ul>
+      </div>
+      <div>
+        <h3>Artifact refs</h3>
+        <ul class="next-step-list">${artifacts || `<li data-required="false"><strong>Artifact 없음</strong><span>아직 publish intent에 연결된 package가 없습니다.</span></li>`}</ul>
+      </div>
+    </div>
+    <div class="runtime-plan-section">
+      <h3>Governance diagnostics</h3>
+      <div class="diagnostic-columns">
+        <div>
+          <h4>Error</h4>
+          <ul class="import-diagnostics">${diagnosticItems(errors)}</ul>
+        </div>
+        <div>
+          <h4>Warning</h4>
+          <ul class="import-diagnostics">${diagnosticItems(warnings)}</ul>
+        </div>
+      </div>
+    </div>
+    <details class="spec-preview">
+      <summary>Publish governance receipt JSON 전체 보기</summary>
+      <pre><code>${escapeHtml(governanceJson)}</code></pre>
+    </details>
+  `;
+}
+
 function selectGraphNode(nodeId) {
   const graph = state.lastGraphPreview?.graph || {};
   const node = (graph.nodes || []).find((item) => item.id === nodeId);
@@ -2693,6 +2780,14 @@ async function loadProductPermissions() {
   );
 }
 
+async function loadPublishGovernance() {
+  const payload = await request("/api/knolet/product-backend/publish-governance");
+  renderPublishGovernance(payload);
+  logAction(
+    `Publish governance 확인: ${payload.status || "unknown"}, artifacts ${payload.summary?.artifactCount || 0}개.`,
+  );
+}
+
 async function saveGraphLayout() {
   const result = await request("/api/knolet/graph/layout", {
     method: "POST",
@@ -3124,6 +3219,9 @@ elements.refreshProductBackendAdapter.addEventListener("click", () =>
 elements.refreshProductPermissions.addEventListener("click", () =>
   runAction(elements.refreshProductPermissions, loadProductPermissions),
 );
+elements.refreshPublishGovernance.addEventListener("click", () =>
+  runAction(elements.refreshPublishGovernance, loadPublishGovernance),
+);
 elements.refreshRuns.addEventListener("click", () => runAction(elements.refreshRuns, loadRuns));
 elements.runForm.addEventListener("submit", createRun);
 elements.saveRunOutputs.addEventListener("click", () =>
@@ -3194,6 +3292,9 @@ loadProductBackendAdapter().catch((error) => {
 });
 loadProductPermissions().catch((error) => {
   elements.productPermissions.innerHTML = `<p class="empty">${error.message}</p>`;
+});
+loadPublishGovernance().catch((error) => {
+  elements.publishGovernance.innerHTML = `<p class="empty">${error.message}</p>`;
 });
 loadLauncherHandoff().catch((error) => {
   elements.launcherHandoff.innerHTML = `<p class="empty">${error.message}</p>`;

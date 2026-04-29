@@ -626,7 +626,8 @@ textarea {
 .product-backend-readiness,
 .product-backend-contract,
 .product-backend-adapter,
-.product-permissions {
+.product-permissions,
+.publish-governance {
   display: grid;
   gap: 16px;
   padding: 16px;
