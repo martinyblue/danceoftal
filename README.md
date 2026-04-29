@@ -1,6 +1,6 @@
 # dance-of-tal Local Manager
 
-Version: `0.5.0`
+Version: `0.5.1`
 
 This repository contains a local-first manager for `dance-of-tal` style assets.
 It is built for the project owner, not first-time visitors. The local UI creates
@@ -190,6 +190,9 @@ dot-studio doctor . --verbose
 - inspect `0.5.0` Product Backend readiness for product auth, data API,
   workspace storage, source binding storage, run log storage, library installs,
   and publish governance before commercial or production use
+- preview the `0.5.1` Product Data API contract for workspace snapshots, source
+  binding confirmations, run log events, library install receipts, and publish
+  intents before adding the server write adapter
 
 ## Knolet Product Direction
 
@@ -420,13 +423,11 @@ of the current local Manager, DOT Studio, OpenCode, and Registry foundation.
 
 Next implementation order for `0.5.x`:
 
-1. Define the product data API contract for workspace snapshots, source binding
-   confirmations, run log events, library install records, and publish intents.
-2. Add a server-backed write adapter that is disabled unless
+1. Add a server-backed write adapter that is disabled unless
    `DANCEOFTAL_STORAGE_MODE=server` and `DANCEOFTAL_DATA_API_URL` are set.
-3. Route save/execute endpoints through the adapter while preserving
+2. Route save/execute endpoints through the adapter while preserving
    development local-first behavior.
-4. Add team workspace permission checks and publish governance receipts.
+3. Add team workspace permission checks and publish governance receipts.
 
 Historical implementation order for `0.3.0`:
 
@@ -465,6 +466,9 @@ a package version bump plus a Git commit pushed to `martinyblue/danceoftal`.
 
 ## Version Notes
 
+- `0.5.1`: added Product Data API Contract preview with endpoint definitions,
+  environment gates, migration order, Manager API/panel, and tests for ready,
+  blocked, and development readiness modes.
 - `0.5.0`: added Product Backend Readiness with a reusable readiness module,
   Manager API/panel, production-mode blockers for local-only storage and inline
   KnowledgeSource content, and tests for development, production, and

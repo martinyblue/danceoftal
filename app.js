@@ -10,6 +10,7 @@ const state = {
   lastLibraryInstallExecution: null,
   lastLibraryInventory: null,
   lastProductBackendReadiness: null,
+  lastProductBackendContract: null,
   librarySourceBindings: {},
   selectedGraphNodeId: "",
   graphLayout: null,
@@ -160,6 +161,8 @@ const elements = {
   libraryInventory: document.querySelector("#libraryInventory"),
   refreshProductBackendReadiness: document.querySelector("#refreshProductBackendReadiness"),
   productBackendReadiness: document.querySelector("#productBackendReadiness"),
+  refreshProductBackendContract: document.querySelector("#refreshProductBackendContract"),
+  productBackendContract: document.querySelector("#productBackendContract"),
   refreshRuns: document.querySelector("#refreshRuns"),
   runForm: document.querySelector("#runForm"),
   runTitle: document.querySelector("#runTitle"),
@@ -2012,6 +2015,104 @@ function renderProductBackendReadiness(payload) {
   `;
 }
 
+function renderProductBackendContract(payload) {
+  state.lastProductBackendContract = payload;
+  const summary = payload.summary || {};
+  const statusState = summary.blockedEndpointCount ? "error" : summary.status === "draft_needs_review" ? "warning" : "ok";
+  const cards = [
+    ["Status", summary.status || "unknown"],
+    ["Endpoints", summary.endpointCount || 0],
+    ["Ready", summary.readyEndpointCount || 0],
+    ["Blocked", summary.blockedEndpointCount || 0],
+    ["Mode", summary.mode || "development"],
+  ]
+    .map(
+      ([label, value]) => `
+        <article class="import-summary-card" data-state="${label === "Status" || label === "Blocked" ? statusState : "ok"}">
+          <span>${escapeHtml(label)}</span>
+          <strong>${escapeHtml(value)}</strong>
+        </article>
+      `,
+    )
+    .join("");
+  const endpoints = (payload.endpoints || [])
+    .map(
+      (endpoint) => `
+        <article class="runtime-participant" data-state="${endpoint.status === "blocked_by_readiness" ? "error" : endpoint.status === "draft_needs_backend" ? "warning" : "ok"}">
+          <strong>${escapeHtml(endpoint.key)}</strong>
+          <span>${escapeHtml(endpoint.method)} ${escapeHtml(endpoint.path)}</span>
+          <span>${escapeHtml(endpoint.purpose)}</span>
+          <ul>
+            <li>
+              <strong>Request</strong>
+              <span>${escapeHtml((endpoint.request?.required || []).join(", "))}</span>
+            </li>
+            <li>
+              <strong>Response</strong>
+              <span>${escapeHtml((endpoint.response?.required || []).join(", "))}</span>
+            </li>
+            <li>
+              <strong>Gate</strong>
+              <span>${escapeHtml(endpoint.status)} / ${escapeHtml(endpoint.readiness?.surfaceState || "unknown")}</span>
+            </li>
+          </ul>
+        </article>
+      `,
+    )
+    .join("");
+  const gates = (payload.environmentGates || [])
+    .map(
+      (gate) => `
+        <li data-required="${gate.required ? "true" : "false"}">
+          <strong>${escapeHtml(gate.key)}</strong>
+          <span>${escapeHtml(gate.detail)}</span>
+          <code>${escapeHtml((gate.env || []).join(", "))}</code>
+        </li>
+      `,
+    )
+    .join("");
+  const migrationOrder = (payload.migrationOrder || [])
+    .map(
+      (key, index) => `
+        <li data-required="false">
+          <strong>${index + 1}. ${escapeHtml(key)}</strong>
+          <span>adapter migration order</span>
+        </li>
+      `,
+    )
+    .join("");
+  const contractJson = JSON.stringify(payload, null, 2);
+
+  elements.productBackendContract.innerHTML = `
+    <div class="import-preview__summary">
+      <div>
+        <strong>Product data API contract: ${escapeHtml(summary.status || "unknown")}</strong>
+        <p>server-backed adapter가 붙기 전에 필요한 endpoint, request/response 필드, idempotency key, 환경 gate를 명시합니다.</p>
+      </div>
+      <span class="asset-pill" data-state="${statusState}">${summary.blockedEndpointCount ? "blocked" : "contract"}</span>
+    </div>
+    <div class="import-summary-grid graph-summary-grid">${cards}</div>
+    <div class="runtime-plan-section">
+      <h3>Endpoint contract</h3>
+      <div class="runtime-participants">${endpoints}</div>
+    </div>
+    <div class="graph-layout">
+      <div>
+        <h3>Environment gates</h3>
+        <ul class="next-step-list">${gates}</ul>
+      </div>
+      <div>
+        <h3>Migration order</h3>
+        <ul class="next-step-list">${migrationOrder}</ul>
+      </div>
+    </div>
+    <details class="spec-preview">
+      <summary>Product backend contract JSON 전체 보기</summary>
+      <pre><code>${escapeHtml(contractJson)}</code></pre>
+    </details>
+  `;
+}
+
 function selectGraphNode(nodeId) {
   const graph = state.lastGraphPreview?.graph || {};
   const node = (graph.nodes || []).find((item) => item.id === nodeId);
@@ -2428,6 +2529,14 @@ async function loadProductBackendReadiness() {
   renderProductBackendReadiness(payload);
   logAction(
     `Product backend readiness 확인: ${payload.summary?.status || "unknown"}, error ${payload.summary?.errorCount || 0}개.`,
+  );
+}
+
+async function loadProductBackendContract() {
+  const payload = await request("/api/knolet/product-backend/contract");
+  renderProductBackendContract(payload);
+  logAction(
+    `Product backend contract 확인: ${payload.summary?.endpointCount || 0} endpoints, blocked ${payload.summary?.blockedEndpointCount || 0}개.`,
   );
 }
 
@@ -2853,6 +2962,9 @@ elements.refreshLibraryInventory.addEventListener("click", () =>
 elements.refreshProductBackendReadiness.addEventListener("click", () =>
   runAction(elements.refreshProductBackendReadiness, loadProductBackendReadiness),
 );
+elements.refreshProductBackendContract.addEventListener("click", () =>
+  runAction(elements.refreshProductBackendContract, loadProductBackendContract),
+);
 elements.refreshRuns.addEventListener("click", () => runAction(elements.refreshRuns, loadRuns));
 elements.runForm.addEventListener("submit", createRun);
 elements.saveRunOutputs.addEventListener("click", () =>
@@ -2914,6 +3026,9 @@ loadLibraryInventory().catch((error) => {
 });
 loadProductBackendReadiness().catch((error) => {
   elements.productBackendReadiness.innerHTML = `<p class="empty">${error.message}</p>`;
+});
+loadProductBackendContract().catch((error) => {
+  elements.productBackendContract.innerHTML = `<p class="empty">${error.message}</p>`;
 });
 loadLauncherHandoff().catch((error) => {
   elements.launcherHandoff.innerHTML = `<p class="empty">${error.message}</p>`;

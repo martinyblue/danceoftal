@@ -420,10 +420,21 @@ Knolet artifacts, workspace/source/run/library/publish storage surfaces, and
 inline KnowledgeSource content. Development mode remains advisory, while
 production mode blocks local-only storage and inline customer source content.
 
+Implemented in `0.5.1`:
+
+- `lib/knolet/product-backend-contract.js`
+- `GET /api/knolet/product-backend/contract`
+- Manager `Product Data API Contract` panel
+- `test/knolet-product-backend-contract.test.js`
+
+The contract preview defines the server API surface for workspace snapshots,
+source binding confirmations, run log events, library install receipts, and
+publish intents. It carries idempotency scopes, required request/response
+fields, environment gates, migration order, and endpoint readiness derived from
+the `0.5.0` readiness report.
+
 Next `0.5.x` work:
 
-- define the server data API contract for workspace snapshots, source binding
-  confirmations, run log events, library install records, and publish intents
 - add a guarded server-backed write adapter
 - route save/execute endpoints through the adapter without breaking local-first
   development mode
