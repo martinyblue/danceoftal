@@ -607,7 +607,8 @@ textarea {
 }
 
 .graph-preview,
-.library-package-preview {
+.library-package-preview,
+.library-install-plan-preview {
   display: grid;
   gap: 16px;
   padding: 16px;

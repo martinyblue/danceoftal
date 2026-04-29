@@ -1,6 +1,6 @@
 # dance-of-tal Local Manager
 
-Version: `0.4.0`
+Version: `0.4.1`
 
 This repository contains a local-first manager for `dance-of-tal` style assets.
 It is built for the project owner, not first-time visitors. The local UI creates
@@ -178,6 +178,9 @@ dot-studio doctor . --verbose
   inspect incoming/outgoing edges for the selected node
 - compile the current KnoletSpec, RuntimePlan, and Graph into a shareable
   Library Package under `.dance-of-tal/knolet-library-package.json`
+- preview a Library Install Plan under
+  `.dance-of-tal/knolet-library-install-plan.json` before installing shared
+  templates into a target workspace
 
 ## Knolet Product Direction
 
@@ -266,6 +269,11 @@ templates: Persona Templates, Skill Blocks, Agent Profiles, Workflow Templates,
 Knowledge App Templates, Evaluation Packs, and UI Output Templates. Source
 documents are kept as binding pointers only, so package sharing does not copy
 customer content.
+
+The `Knolet Library Install Plan` preview turns that package into reviewable
+template install actions plus KnowledgeSource rebinding steps. It is deliberately
+non-destructive: users can inspect what will be created and which sources need
+review before any future install executor writes templates into the workspace.
 
 ## Operator Flow
 

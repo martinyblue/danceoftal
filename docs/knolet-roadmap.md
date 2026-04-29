@@ -339,6 +339,19 @@ Template, Evaluation Pack, and UI Output Template records. KnowledgeSource
 content is stripped; packages keep only binding pointers so templates can be
 shared without copying customer documents.
 
+Implemented in `0.4.1`:
+
+- `lib/knolet/library-install-plan.js`
+- `GET/POST /api/knolet/library/install-plan`
+- `POST /api/knolet/library/install-plan/save`
+- Manager `Knolet Library Install Plan` preview/save panel
+- `test/knolet-library-install-plan.test.js`
+
+The install plan is a non-destructive review boundary before actual template
+installation. It lists template install actions, source rebinding requirements,
+fork metadata, package diagnostics, and blocks packages that would copy source
+documents.
+
 ## Phase 7: Product Backend
 
 Goal: prepare for real commercial use.

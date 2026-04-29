@@ -1,6 +1,6 @@
 {
   "name": "danceoftal-local-manager",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "private": true,
   "description": "Local manager for dance-of-tal style Tal, Dance, Performer, and Act assets.",
   "scripts": {

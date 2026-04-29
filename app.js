@@ -6,6 +6,7 @@ const state = {
   lastRuntimePlan: null,
   lastGraphPreview: null,
   lastLibraryPackage: null,
+  lastLibraryInstallPlan: null,
   selectedGraphNodeId: "",
   graphLayout: null,
   graphLayoutDirty: false,
@@ -145,6 +146,9 @@ const elements = {
   refreshLibraryPackage: document.querySelector("#refreshLibraryPackage"),
   saveLibraryPackage: document.querySelector("#saveLibraryPackage"),
   libraryPackagePreview: document.querySelector("#libraryPackagePreview"),
+  refreshLibraryInstallPlan: document.querySelector("#refreshLibraryInstallPlan"),
+  saveLibraryInstallPlan: document.querySelector("#saveLibraryInstallPlan"),
+  libraryInstallPlanPreview: document.querySelector("#libraryInstallPlanPreview"),
   refreshRuns: document.querySelector("#refreshRuns"),
   runForm: document.querySelector("#runForm"),
   runTitle: document.querySelector("#runTitle"),
@@ -1611,6 +1615,90 @@ function renderLibraryPackagePreview(payload) {
   `;
 }
 
+function renderLibraryInstallPlanPreview(payload) {
+  state.lastLibraryInstallPlan = payload;
+  const installPlan = payload.installPlan || {};
+  const summary = installPlan.summary || {};
+  const statusState = summary.ready ? "ok" : "error";
+  const cards = [
+    ["Template actions", summary.templateActionCount || 0],
+    ["Source rebindings", summary.sourceRebindingCount || 0],
+    ["Required sources", summary.requiredRebindingCount || 0],
+    ["Diagnostics", `${summary.errorCount || 0} error / ${summary.warningCount || 0} warning`],
+    ["Status", installPlan.status || "unknown"],
+  ]
+    .map(
+      ([label, value]) => `
+        <article class="import-summary-card" data-state="${label === "Status" ? statusState : "ok"}">
+          <span>${escapeHtml(label)}</span>
+          <strong>${escapeHtml(value)}</strong>
+        </article>
+      `,
+    )
+    .join("");
+  const actions = (installPlan.template_actions || [])
+    .map(
+      (action) => `
+        <li>
+          <strong>${escapeHtml(action.template_id)}</strong>
+          <span>${escapeHtml(action.template_type)} -> ${escapeHtml(action.target_id)}</span>
+        </li>
+      `,
+    )
+    .join("");
+  const rebindings = (installPlan.source_rebindings || [])
+    .map(
+      (source) => `
+        <li data-required="${source.required ? "true" : "false"}">
+          <strong>${escapeHtml(source.label || source.source_id)}</strong>
+          <span>${escapeHtml(source.type)} / ${escapeHtml(source.status)} / ${escapeHtml(source.pointer_kind)}</span>
+        </li>
+      `,
+    )
+    .join("");
+  const errors = payload.diagnosticsByLevel?.error || [];
+  const warnings = payload.diagnosticsByLevel?.warning || [];
+  const planJson = JSON.stringify(installPlan, null, 2);
+
+  elements.libraryInstallPlanPreview.innerHTML = `
+    <div class="import-preview__summary">
+      <div>
+        <strong>${escapeHtml(installPlan.source_package?.id || "Library Install Plan")}</strong>
+        <p>${escapeHtml(installPlan.target_workspace?.owner || "martinyblue")}/${escapeHtml(installPlan.target_workspace?.stage || "local")} workspace에 설치하기 전 검토 plan입니다.</p>
+      </div>
+      <span class="asset-pill" data-state="${statusState}">${summary.ready ? "ready" : "blocked"}</span>
+    </div>
+    <div class="import-summary-grid graph-summary-grid">${cards}</div>
+    <div class="graph-layout">
+      <div>
+        <h3>Template actions</h3>
+        <ul class="next-step-list">${actions || `<li data-required="true"><strong>Action 없음</strong><span>설치할 템플릿이 없습니다.</span></li>`}</ul>
+      </div>
+      <div>
+        <h3>Source rebindings</h3>
+        <ul class="next-step-list">${rebindings || `<li data-required="false"><strong>Rebinding 없음</strong><span>재연결할 KnowledgeSource가 없습니다.</span></li>`}</ul>
+      </div>
+    </div>
+    <div class="runtime-plan-section">
+      <h3>Install diagnostics</h3>
+      <div class="diagnostic-columns">
+        <div>
+          <h4>Error</h4>
+          <ul class="import-diagnostics">${diagnosticItems(errors)}</ul>
+        </div>
+        <div>
+          <h4>Warning</h4>
+          <ul class="import-diagnostics">${diagnosticItems(warnings)}</ul>
+        </div>
+      </div>
+    </div>
+    <details class="spec-preview">
+      <summary>Knolet library install plan JSON 전체 보기</summary>
+      <pre><code>${escapeHtml(planJson)}</code></pre>
+    </details>
+  `;
+}
+
 function selectGraphNode(nodeId) {
   const graph = state.lastGraphPreview?.graph || {};
   const node = (graph.nodes || []).find((item) => item.id === nodeId);
@@ -1961,6 +2049,28 @@ async function saveLibraryPackage() {
   elements.previewTitle.textContent = "knolet-library-package.json 저장 완료";
   elements.previewBody.textContent = `${result.path}\nstatus: ${result.status}\ntemplates: ${result.summary?.templateCount || 0}`;
   logAction(`Knolet library package 저장 완료: ${result.path}`);
+}
+
+async function loadLibraryInstallPlan() {
+  const payload = await request("/api/knolet/library/install-plan", {
+    method: "POST",
+    body: JSON.stringify(bindingPayload()),
+  });
+  renderLibraryInstallPlanPreview(payload);
+  logAction(
+    `Library install plan preview 완료: ${payload.installPlan?.status || "unknown"}, actions ${payload.installPlan?.summary?.templateActionCount || 0}개.`,
+  );
+}
+
+async function saveLibraryInstallPlan() {
+  const result = await request("/api/knolet/library/install-plan/save", {
+    method: "POST",
+    body: JSON.stringify(bindingPayload()),
+  });
+  await loadLibraryInstallPlan();
+  elements.previewTitle.textContent = "knolet-library-install-plan.json 저장 완료";
+  elements.previewBody.textContent = `${result.path}\nstatus: ${result.status}\nactions: ${result.summary?.templateActionCount || 0}`;
+  logAction(`Knolet library install plan 저장 완료: ${result.path}`);
 }
 
 async function saveGraphLayout() {
@@ -2367,6 +2477,12 @@ elements.refreshLibraryPackage.addEventListener("click", () =>
 elements.saveLibraryPackage.addEventListener("click", () =>
   runAction(elements.saveLibraryPackage, saveLibraryPackage),
 );
+elements.refreshLibraryInstallPlan.addEventListener("click", () =>
+  runAction(elements.refreshLibraryInstallPlan, loadLibraryInstallPlan),
+);
+elements.saveLibraryInstallPlan.addEventListener("click", () =>
+  runAction(elements.saveLibraryInstallPlan, saveLibraryInstallPlan),
+);
 elements.refreshRuns.addEventListener("click", () => runAction(elements.refreshRuns, loadRuns));
 elements.runForm.addEventListener("submit", createRun);
 elements.saveRunOutputs.addEventListener("click", () =>
@@ -2416,6 +2532,9 @@ loadGraphPreview().catch((error) => {
 });
 loadLibraryPackage().catch((error) => {
   elements.libraryPackagePreview.innerHTML = `<p class="empty">${error.message}</p>`;
+});
+loadLibraryInstallPlan().catch((error) => {
+  elements.libraryInstallPlanPreview.innerHTML = `<p class="empty">${error.message}</p>`;
 });
 loadLauncherHandoff().catch((error) => {
   elements.launcherHandoff.innerHTML = `<p class="empty">${error.message}</p>`;

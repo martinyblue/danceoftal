@@ -10,6 +10,7 @@ const { importDotWorkspace } = require("./lib/knolet/dot-importer");
 const { compileKnoletRuntimePlan } = require("./lib/knolet/runtime-plan");
 const { compileKnoletGraphModel } = require("./lib/knolet/graph-model");
 const { compileKnoletLibraryPackage } = require("./lib/knolet/library-package");
+const { compileKnoletLibraryInstallPlan } = require("./lib/knolet/library-install-plan");
 
 const root = process.cwd();
 const workspaceRoot = path.join(root, ".dance-of-tal");
@@ -21,6 +22,7 @@ const runtimePlanPath = path.join(workspaceRoot, "runtime-plan.json");
 const knoletGraphPath = path.join(workspaceRoot, "knolet-graph.json");
 const knoletGraphLayoutPath = path.join(workspaceRoot, "knolet-graph-layout.json");
 const knoletLibraryPackagePath = path.join(workspaceRoot, "knolet-library-package.json");
+const knoletLibraryInstallPlanPath = path.join(workspaceRoot, "knolet-library-install-plan.json");
 const port = Number(process.env.PORT || 8080);
 const studioUrl = process.env.DOT_STUDIO_URL || "http://127.0.0.1:43110";
 const opencodeUrl = process.env.OPENCODE_URL || "http://127.0.0.1:43120";
@@ -1517,6 +1519,35 @@ async function saveLibraryPackage(payload = {}) {
   };
 }
 
+async function libraryInstallPlanPreview(payload = {}) {
+  const packagePreview = await libraryPackagePreview(payload);
+  const installPlan = compileKnoletLibraryInstallPlan(packagePreview.package, {
+    targetOwner: payload.targetOwner || "martinyblue",
+    targetStage: payload.targetStage || "local",
+  });
+  return {
+    installPlan,
+    packageSummary: packagePreview.package.summary,
+    diagnosticsByLevel: {
+      error: installPlan.diagnostics.filter((item) => item.level === "error"),
+      warning: installPlan.diagnostics.filter((item) => item.level === "warning"),
+    },
+  };
+}
+
+async function saveLibraryInstallPlan(payload = {}) {
+  const preview = await libraryInstallPlanPreview(payload);
+  await fs.mkdir(path.dirname(knoletLibraryInstallPlanPath), { recursive: true });
+  await fs.writeFile(knoletLibraryInstallPlanPath, `${JSON.stringify(preview.installPlan, null, 2)}\n`);
+  return {
+    ok: true,
+    path: path.relative(root, knoletLibraryInstallPlanPath),
+    summary: preview.installPlan.summary,
+    status: preview.installPlan.status,
+    diagnosticsByLevel: preview.diagnosticsByLevel,
+  };
+}
+
 function normalizeGraphLayoutPositions(value = {}) {
   const positions = {};
   for (const [nodeId, position] of Object.entries(value || {})) {
@@ -2313,6 +2344,23 @@ async function route(request, response) {
   if (url.pathname === "/api/knolet/library/package/save" && request.method === "POST") {
     const payload = await parseBody(request);
     send(response, 200, await saveLibraryPackage(payload));
+    return;
+  }
+
+  if (url.pathname === "/api/knolet/library/install-plan" && request.method === "GET") {
+    send(response, 200, await libraryInstallPlanPreview());
+    return;
+  }
+
+  if (url.pathname === "/api/knolet/library/install-plan" && request.method === "POST") {
+    const payload = await parseBody(request);
+    send(response, 200, await libraryInstallPlanPreview(payload));
+    return;
+  }
+
+  if (url.pathname === "/api/knolet/library/install-plan/save" && request.method === "POST") {
+    const payload = await parseBody(request);
+    send(response, 200, await saveLibraryInstallPlan(payload));
     return;
   }
 
