@@ -9,6 +9,7 @@ const {
 const { importDotWorkspace } = require("./lib/knolet/dot-importer");
 const { compileKnoletRuntimePlan } = require("./lib/knolet/runtime-plan");
 const { compileKnoletGraphModel } = require("./lib/knolet/graph-model");
+const { compileKnoletLibraryPackage } = require("./lib/knolet/library-package");
 
 const root = process.cwd();
 const workspaceRoot = path.join(root, ".dance-of-tal");
@@ -19,6 +20,7 @@ const knoletRootSpecPath = path.join(root, "knolet.json");
 const runtimePlanPath = path.join(workspaceRoot, "runtime-plan.json");
 const knoletGraphPath = path.join(workspaceRoot, "knolet-graph.json");
 const knoletGraphLayoutPath = path.join(workspaceRoot, "knolet-graph-layout.json");
+const knoletLibraryPackagePath = path.join(workspaceRoot, "knolet-library-package.json");
 const port = Number(process.env.PORT || 8080);
 const studioUrl = process.env.DOT_STUDIO_URL || "http://127.0.0.1:43110";
 const opencodeUrl = process.env.OPENCODE_URL || "http://127.0.0.1:43120";
@@ -1484,6 +1486,37 @@ async function saveGraphModel(payload = {}) {
   };
 }
 
+async function libraryPackagePreview(payload = {}) {
+  const workspacePath = resolveWorkspaceInput(payload.path || ".dance-of-tal");
+  const specPreview = await importDotWorkspacePreview(workspacePath, payload);
+  const runtimePlan = compileKnoletRuntimePlan(specPreview.spec);
+  const graph = compileKnoletGraphModel(specPreview.spec, runtimePlan);
+  const libraryPackage = compileKnoletLibraryPackage(specPreview.spec, runtimePlan, graph);
+  return {
+    package: libraryPackage,
+    specSummary: specPreview.summary,
+    runtimeSummary: runtimePlan.summary,
+    graphSummary: graph.summary,
+    diagnosticsByLevel: {
+      error: libraryPackage.diagnostics.filter((item) => item.level === "error"),
+      warning: libraryPackage.diagnostics.filter((item) => item.level === "warning"),
+    },
+  };
+}
+
+async function saveLibraryPackage(payload = {}) {
+  const preview = await libraryPackagePreview(payload);
+  await fs.mkdir(path.dirname(knoletLibraryPackagePath), { recursive: true });
+  await fs.writeFile(knoletLibraryPackagePath, `${JSON.stringify(preview.package, null, 2)}\n`);
+  return {
+    ok: true,
+    path: path.relative(root, knoletLibraryPackagePath),
+    summary: preview.package.summary,
+    status: preview.package.status,
+    diagnosticsByLevel: preview.diagnosticsByLevel,
+  };
+}
+
 function normalizeGraphLayoutPositions(value = {}) {
   const positions = {};
   for (const [nodeId, position] of Object.entries(value || {})) {
@@ -2263,6 +2296,23 @@ async function route(request, response) {
   if (url.pathname === "/api/knolet/graph/save" && request.method === "POST") {
     const payload = await parseBody(request);
     send(response, 200, await saveGraphModel(payload));
+    return;
+  }
+
+  if (url.pathname === "/api/knolet/library/package" && request.method === "GET") {
+    send(response, 200, await libraryPackagePreview());
+    return;
+  }
+
+  if (url.pathname === "/api/knolet/library/package" && request.method === "POST") {
+    const payload = await parseBody(request);
+    send(response, 200, await libraryPackagePreview(payload));
+    return;
+  }
+
+  if (url.pathname === "/api/knolet/library/package/save" && request.method === "POST") {
+    const payload = await parseBody(request);
+    send(response, 200, await saveLibraryPackage(payload));
     return;
   }
 

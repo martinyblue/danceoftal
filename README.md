@@ -1,6 +1,6 @@
 # dance-of-tal Local Manager
 
-Version: `0.3.7`
+Version: `0.4.0`
 
 This repository contains a local-first manager for `dance-of-tal` style assets.
 It is built for the project owner, not first-time visitors. The local UI creates
@@ -176,6 +176,8 @@ dot-studio doctor . --verbose
 - drag graph nodes in Manager, save position overrides to
   `.dance-of-tal/knolet-graph-layout.json`, reset back to automatic layout, and
   inspect incoming/outgoing edges for the selected node
+- compile the current KnoletSpec, RuntimePlan, and Graph into a shareable
+  Library Package under `.dance-of-tal/knolet-library-package.json`
 
 ## Knolet Product Direction
 
@@ -258,6 +260,12 @@ Evaluation, and Output nodes with graph diagnostics and a selected-node detail
 view for the future visual builder. The Manager can also persist manual node
 position overrides in `.dance-of-tal/knolet-graph-layout.json`; nodes without a
 saved position continue to use the automatic layered layout.
+
+The `Knolet Library Package` preview converts a ready Knolet app into reusable
+templates: Persona Templates, Skill Blocks, Agent Profiles, Workflow Templates,
+Knowledge App Templates, Evaluation Packs, and UI Output Templates. Source
+documents are kept as binding pointers only, so package sharing does not copy
+customer content.
 
 ## Operator Flow
 

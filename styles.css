@@ -606,14 +606,15 @@ textarea {
   border-radius: 6px;
 }
 
-.graph-preview {
+.graph-preview,
+.library-package-preview {
   display: grid;
   gap: 16px;
   padding: 16px;
 }
 
 .graph-summary-grid {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
 }
 
 .graph-layout {

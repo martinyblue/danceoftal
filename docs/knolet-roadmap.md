@@ -325,6 +325,20 @@ Done when:
 
 Suggested version: `0.4.0`.
 
+Implemented in `0.4.0`:
+
+- `lib/knolet/library-package.js`
+- `GET/POST /api/knolet/library/package`
+- `POST /api/knolet/library/package/save`
+- Manager `Knolet Library Package` preview/save panel
+- `test/knolet-library-package.test.js`
+
+The package compiler turns a ready KnoletSpec, RuntimePlan, and Graph into
+Persona Template, Skill Block, Agent Profile, Workflow Template, Knowledge App
+Template, Evaluation Pack, and UI Output Template records. KnowledgeSource
+content is stripped; packages keep only binding pointers so templates can be
+shared without copying customer documents.
+
 ## Phase 7: Product Backend
 
 Goal: prepare for real commercial use.

@@ -5,6 +5,7 @@ const state = {
   bindingDraft: null,
   lastRuntimePlan: null,
   lastGraphPreview: null,
+  lastLibraryPackage: null,
   selectedGraphNodeId: "",
   graphLayout: null,
   graphLayoutDirty: false,
@@ -141,6 +142,9 @@ const elements = {
   saveGraphLayout: document.querySelector("#saveGraphLayout"),
   resetGraphLayout: document.querySelector("#resetGraphLayout"),
   graphPreview: document.querySelector("#graphPreview"),
+  refreshLibraryPackage: document.querySelector("#refreshLibraryPackage"),
+  saveLibraryPackage: document.querySelector("#saveLibraryPackage"),
+  libraryPackagePreview: document.querySelector("#libraryPackagePreview"),
   refreshRuns: document.querySelector("#refreshRuns"),
   runForm: document.querySelector("#runForm"),
   runTitle: document.querySelector("#runTitle"),
@@ -1494,6 +1498,119 @@ function renderGraphPreview(payload, selectedNodeId = "") {
   }
 }
 
+function renderLibraryTemplateGroup(title, items) {
+  const rows = (items || [])
+    .map(
+      (item) => `
+        <li>
+          <strong>${escapeHtml(item.id)}</strong>
+          <span>${escapeHtml(item.type || title)}</span>
+        </li>
+      `,
+    )
+    .join("");
+  return `
+    <div>
+      <h3>${escapeHtml(title)}</h3>
+      <ul class="next-step-list">${rows || `<li data-required="false"><strong>없음</strong><span>템플릿 없음</span></li>`}</ul>
+    </div>
+  `;
+}
+
+function renderLibraryPackagePreview(payload) {
+  state.lastLibraryPackage = payload;
+  const libraryPackage = payload.package || {};
+  const summary = libraryPackage.summary || {};
+  const templates = libraryPackage.templates || {};
+  const statusState = summary.shareReady ? "ok" : "error";
+  const cards = [
+    ["Templates", summary.templateCount || 0],
+    ["Sources", summary.sourceBindingCount || 0],
+    ["Dependencies", summary.dependencyCount || 0],
+    ["Diagnostics", `${summary.errorCount || 0} error / ${summary.warningCount || 0} warning`],
+    ["Status", libraryPackage.status || "unknown"],
+  ]
+    .map(
+      ([label, value]) => `
+        <article class="import-summary-card" data-state="${label === "Status" ? statusState : "ok"}">
+          <span>${escapeHtml(label)}</span>
+          <strong>${escapeHtml(value)}</strong>
+        </article>
+      `,
+    )
+    .join("");
+  const sourceBindings = (libraryPackage.source_bindings || [])
+    .map(
+      (source) => `
+        <li>
+          <strong>${escapeHtml(source.label || source.id)}</strong>
+          <span>${escapeHtml(source.type)} / ${escapeHtml(source.pointer?.kind || "binding")}</span>
+        </li>
+      `,
+    )
+    .join("");
+  const dependencies = libraryPackage.dependencies?.dot_assets || [];
+  const dependencyItems = dependencies
+    .map(
+      (item) => `
+        <li>
+          <strong>${escapeHtml(item)}</strong>
+          <span>DOT asset reference</span>
+        </li>
+      `,
+    )
+    .join("");
+  const errors = payload.diagnosticsByLevel?.error || [];
+  const warnings = payload.diagnosticsByLevel?.warning || [];
+  const packageJson = JSON.stringify(libraryPackage, null, 2);
+
+  elements.libraryPackagePreview.innerHTML = `
+    <div class="import-preview__summary">
+      <div>
+        <strong>${escapeHtml(libraryPackage.metadata?.name || "Knolet Library Package")}</strong>
+        <p>현재 Knolet 앱 구조를 재사용 가능한 library package로 변환했습니다.</p>
+      </div>
+      <span class="asset-pill" data-state="${statusState}">${summary.shareReady ? "shareable" : "blocked"}</span>
+    </div>
+    <div class="import-summary-grid graph-summary-grid">${cards}</div>
+    <div class="graph-layout">
+      ${renderLibraryTemplateGroup("Persona Templates", templates.persona_templates)}
+      ${renderLibraryTemplateGroup("Skill Blocks", templates.skill_blocks)}
+    </div>
+    <div class="graph-layout">
+      ${renderLibraryTemplateGroup("Agent Profiles", templates.agent_profiles)}
+      ${renderLibraryTemplateGroup("Workflow Templates", templates.workflow_templates)}
+    </div>
+    <div class="graph-layout">
+      <div>
+        <h3>Source bindings</h3>
+        <ul class="next-step-list">${sourceBindings || `<li data-required="true"><strong>Source 없음</strong><span>KnowledgeSource binding이 없습니다.</span></li>`}</ul>
+      </div>
+      <div>
+        <h3>DOT dependencies</h3>
+        <ul class="next-step-list">${dependencyItems || `<li data-required="false"><strong>Dependency 없음</strong><span>외부 DOT asset 참조가 없습니다.</span></li>`}</ul>
+      </div>
+    </div>
+    <div class="runtime-plan-section">
+      <h3>Library diagnostics</h3>
+      <div class="diagnostic-columns">
+        <div>
+          <h4>Error</h4>
+          <ul class="import-diagnostics">${diagnosticItems(errors)}</ul>
+        </div>
+        <div>
+          <h4>Warning</h4>
+          <ul class="import-diagnostics">${diagnosticItems(warnings)}</ul>
+        </div>
+      </div>
+    </div>
+    <details class="spec-preview">
+      <summary>Knolet library package JSON 전체 보기</summary>
+      <pre><code>${escapeHtml(packageJson)}</code></pre>
+    </details>
+  `;
+}
+
 function selectGraphNode(nodeId) {
   const graph = state.lastGraphPreview?.graph || {};
   const node = (graph.nodes || []).find((item) => item.id === nodeId);
@@ -1822,6 +1939,28 @@ async function saveGraphModel() {
   elements.previewTitle.textContent = "knolet-graph.json 저장 완료";
   elements.previewBody.textContent = `${result.path}\nstatus: ${result.status}\nnodes: ${result.summary?.nodeCount || 0}\nedges: ${result.summary?.edgeCount || 0}`;
   logAction(`Knolet graph 저장 완료: ${result.path}`);
+}
+
+async function loadLibraryPackage() {
+  const payload = await request("/api/knolet/library/package", {
+    method: "POST",
+    body: JSON.stringify(bindingPayload()),
+  });
+  renderLibraryPackagePreview(payload);
+  logAction(
+    `Library package preview 완료: ${payload.package?.status || "unknown"}, templates ${payload.package?.summary?.templateCount || 0}개.`,
+  );
+}
+
+async function saveLibraryPackage() {
+  const result = await request("/api/knolet/library/package/save", {
+    method: "POST",
+    body: JSON.stringify(bindingPayload()),
+  });
+  await loadLibraryPackage();
+  elements.previewTitle.textContent = "knolet-library-package.json 저장 완료";
+  elements.previewBody.textContent = `${result.path}\nstatus: ${result.status}\ntemplates: ${result.summary?.templateCount || 0}`;
+  logAction(`Knolet library package 저장 완료: ${result.path}`);
 }
 
 async function saveGraphLayout() {
@@ -2222,6 +2361,12 @@ elements.saveGraphLayout.addEventListener("click", () =>
 elements.resetGraphLayout.addEventListener("click", () =>
   runAction(elements.resetGraphLayout, resetGraphLayout),
 );
+elements.refreshLibraryPackage.addEventListener("click", () =>
+  runAction(elements.refreshLibraryPackage, loadLibraryPackage),
+);
+elements.saveLibraryPackage.addEventListener("click", () =>
+  runAction(elements.saveLibraryPackage, saveLibraryPackage),
+);
 elements.refreshRuns.addEventListener("click", () => runAction(elements.refreshRuns, loadRuns));
 elements.runForm.addEventListener("submit", createRun);
 elements.saveRunOutputs.addEventListener("click", () =>
@@ -2268,6 +2413,9 @@ loadRuntimePlan().catch((error) => {
 });
 loadGraphPreview().catch((error) => {
   elements.graphPreview.innerHTML = `<p class="empty">${error.message}</p>`;
+});
+loadLibraryPackage().catch((error) => {
+  elements.libraryPackagePreview.innerHTML = `<p class="empty">${error.message}</p>`;
 });
 loadLauncherHandoff().catch((error) => {
   elements.launcherHandoff.innerHTML = `<p class="empty">${error.message}</p>`;
