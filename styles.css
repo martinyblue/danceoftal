@@ -545,6 +545,18 @@ textarea {
   align-items: center;
 }
 
+.library-rebinding-row {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) minmax(180px, 0.8fr);
+  gap: 10px;
+  align-items: center;
+}
+
+.library-rebinding-row input {
+  width: 100%;
+  min-width: 0;
+}
+
 .runtime-plan-preview {
   display: grid;
   gap: 16px;

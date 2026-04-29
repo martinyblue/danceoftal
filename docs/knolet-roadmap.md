@@ -377,6 +377,15 @@ templates, source binding records, and installation manifests. Invalid library
 JSON is reported as a warning so one bad local record does not hide the rest of
 the installed library.
 
+Implemented in `0.4.4`:
+
+- Manager source rebinding inputs on the `Knolet Library Install Plan` panel
+- source rebinding payloads passed into install execution preview and execute
+- README capability note for source rebinding before install
+
+This lets required source bindings be confirmed from the Manager before a
+package install writes local library records.
+
 ## Phase 7: Product Backend
 
 Goal: prepare for real commercial use.

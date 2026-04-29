@@ -9,6 +9,7 @@ const state = {
   lastLibraryInstallPlan: null,
   lastLibraryInstallExecution: null,
   lastLibraryInventory: null,
+  librarySourceBindings: {},
   selectedGraphNodeId: "",
   graphLayout: null,
   graphLayoutDirty: false,
@@ -673,6 +674,13 @@ function bindingPayload() {
         skillBindings: state.bindingDraft.skillBindings,
       }
     : {};
+}
+
+function libraryInstallPayload() {
+  return {
+    ...bindingPayload(),
+    sourceBindings: state.librarySourceBindings,
+  };
 }
 
 function sourceOption(source, selectedIds) {
@@ -1656,9 +1664,17 @@ function renderLibraryInstallPlanPreview(payload) {
   const rebindings = (installPlan.source_rebindings || [])
     .map(
       (source) => `
-        <li data-required="${source.required ? "true" : "false"}">
-          <strong>${escapeHtml(source.label || source.source_id)}</strong>
-          <span>${escapeHtml(source.type)} / ${escapeHtml(source.status)} / ${escapeHtml(source.pointer_kind)}</span>
+        <li class="library-rebinding-row" data-required="${source.required ? "true" : "false"}">
+          <div>
+            <strong>${escapeHtml(source.label || source.source_id)}</strong>
+            <span>${escapeHtml(source.type)} / ${escapeHtml(source.status)} / ${escapeHtml(source.pointer_kind)}</span>
+          </div>
+          <input
+            data-library-source-binding="${escapeHtml(source.source_id)}"
+            placeholder="target_source_id"
+            value="${escapeHtml(state.librarySourceBindings[source.source_id]?.target_source_id || "")}"
+            autocomplete="off"
+          />
         </li>
       `,
     )
@@ -1704,6 +1720,19 @@ function renderLibraryInstallPlanPreview(payload) {
       <pre><code>${escapeHtml(planJson)}</code></pre>
     </details>
   `;
+  attachLibraryInstallPlanEvents();
+}
+
+function attachLibraryInstallPlanEvents() {
+  for (const input of elements.libraryInstallPlanPreview.querySelectorAll("[data-library-source-binding]")) {
+    input.addEventListener("input", () => {
+      const sourceId = input.dataset.librarySourceBinding;
+      state.librarySourceBindings[sourceId] = {
+        status: input.value.trim() ? "bound" : "needs_binding",
+        target_source_id: input.value.trim(),
+      };
+    });
+  }
 }
 
 function renderLibraryInstallExecutionPreview(payload) {
@@ -2245,7 +2274,7 @@ async function saveLibraryInstallPlan() {
 async function loadLibraryInstallExecution() {
   const payload = await request("/api/knolet/library/install/execution", {
     method: "POST",
-    body: JSON.stringify(bindingPayload()),
+    body: JSON.stringify(libraryInstallPayload()),
   });
   renderLibraryInstallExecutionPreview(payload);
   logAction(
@@ -2256,7 +2285,7 @@ async function loadLibraryInstallExecution() {
 async function executeLibraryInstall() {
   const result = await request("/api/knolet/library/install/execute", {
     method: "POST",
-    body: JSON.stringify(bindingPayload()),
+    body: JSON.stringify(libraryInstallPayload()),
   });
   renderLibraryInstallExecutionPreview(result);
   await loadLibraryInventory();
