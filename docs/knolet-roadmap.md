@@ -276,6 +276,32 @@ Done when:
 
 Suggested version: `0.3.6`.
 
+## Phase 5.6: Graph Editing Foundation
+
+Goal: turn the visible graph into a safe editing surface without changing the
+underlying KnoletSpec yet.
+
+Scope:
+
+- draggable SVG graph nodes
+- persisted node position overrides in `.dance-of-tal/knolet-graph-layout.json`
+- automatic layout fallback for nodes without saved positions
+- layout reset control
+- selected-node incoming/outgoing edge detail
+- graph diagnostics kept visually connected to nodes and edges while layout
+  changes
+
+Done when:
+
+- Manager graph nodes can be dragged
+- dragged positions can be saved and restored
+- automatic layout and saved layout overrides work together
+- selected node detail shows incoming and outgoing edges
+- graph diagnostics remain visible on the graph
+- the full local stack is verified on localhost
+
+Suggested version: `0.3.7`.
+
 ## Phase 6: Library and Sharing
 
 Goal: convert DOT registry ideas into a Knolet Library.

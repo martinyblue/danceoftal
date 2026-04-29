@@ -18,6 +18,7 @@ const knoletWorkspaceSpecPath = path.join(workspaceRoot, "knolet.json");
 const knoletRootSpecPath = path.join(root, "knolet.json");
 const runtimePlanPath = path.join(workspaceRoot, "runtime-plan.json");
 const knoletGraphPath = path.join(workspaceRoot, "knolet-graph.json");
+const knoletGraphLayoutPath = path.join(workspaceRoot, "knolet-graph-layout.json");
 const port = Number(process.env.PORT || 8080);
 const studioUrl = process.env.DOT_STUDIO_URL || "http://127.0.0.1:43110";
 const opencodeUrl = process.env.OPENCODE_URL || "http://127.0.0.1:43120";
@@ -37,6 +38,7 @@ const contentTypes = {
 };
 
 const assetKinds = new Set(["tal", "dance", "performer", "act"]);
+const GRAPH_LAYOUT_VERSION = "0.1";
 
 function send(response, status, payload, type = "application/json; charset=utf-8") {
   response.writeHead(status, { "content-type": type });
@@ -1456,8 +1458,10 @@ async function graphModelPreview(payload = {}) {
   const specPreview = await importDotWorkspacePreview(workspacePath, payload);
   const runtimePlan = compileKnoletRuntimePlan(specPreview.spec);
   const graph = compileKnoletGraphModel(specPreview.spec, runtimePlan);
+  const layout = await readGraphLayout();
   return {
     graph,
+    layout,
     specSummary: specPreview.summary,
     runtimeSummary: runtimePlan.summary,
     diagnosticsByLevel: {
@@ -1477,6 +1481,82 @@ async function saveGraphModel(payload = {}) {
     summary: preview.graph.summary,
     status: preview.graph.status,
     diagnosticsByLevel: preview.diagnosticsByLevel,
+  };
+}
+
+function normalizeGraphLayoutPositions(value = {}) {
+  const positions = {};
+  for (const [nodeId, position] of Object.entries(value || {})) {
+    const x = Number(position?.x);
+    const y = Number(position?.y);
+    if (!nodeId || !Number.isFinite(x) || !Number.isFinite(y)) {
+      continue;
+    }
+    positions[nodeId] = {
+      x: Math.round(x * 100) / 100,
+      y: Math.round(y * 100) / 100,
+    };
+  }
+  return positions;
+}
+
+function emptyGraphLayout(extra = {}) {
+  return {
+    graph_layout_version: GRAPH_LAYOUT_VERSION,
+    exists: false,
+    path: path.relative(root, knoletGraphLayoutPath),
+    updatedAt: "",
+    positions: {},
+    ...extra,
+  };
+}
+
+async function readGraphLayout() {
+  try {
+    const parsed = JSON.parse(await fs.readFile(knoletGraphLayoutPath, "utf8"));
+    return {
+      graph_layout_version: parsed.graph_layout_version || GRAPH_LAYOUT_VERSION,
+      exists: true,
+      path: path.relative(root, knoletGraphLayoutPath),
+      updatedAt: parsed.updatedAt || "",
+      positions: normalizeGraphLayoutPositions(parsed.positions),
+    };
+  } catch (error) {
+    if (error.code === "ENOENT") {
+      return emptyGraphLayout();
+    }
+    return emptyGraphLayout({
+      error: `Invalid graph layout file: ${error.message}`,
+    });
+  }
+}
+
+async function saveGraphLayout(payload = {}) {
+  const layout = {
+    graph_layout_version: GRAPH_LAYOUT_VERSION,
+    source: "manager",
+    updatedAt: new Date().toISOString(),
+    positions: normalizeGraphLayoutPositions(payload.positions),
+  };
+  await fs.mkdir(path.dirname(knoletGraphLayoutPath), { recursive: true });
+  await fs.writeFile(knoletGraphLayoutPath, `${JSON.stringify(layout, null, 2)}\n`);
+  return {
+    ok: true,
+    layout: {
+      ...layout,
+      exists: true,
+      path: path.relative(root, knoletGraphLayoutPath),
+    },
+    path: path.relative(root, knoletGraphLayoutPath),
+    positionCount: Object.keys(layout.positions).length,
+  };
+}
+
+async function resetGraphLayout() {
+  await fs.rm(knoletGraphLayoutPath, { force: true });
+  return {
+    ok: true,
+    layout: emptyGraphLayout(),
   };
 }
 
@@ -2183,6 +2263,22 @@ async function route(request, response) {
   if (url.pathname === "/api/knolet/graph/save" && request.method === "POST") {
     const payload = await parseBody(request);
     send(response, 200, await saveGraphModel(payload));
+    return;
+  }
+
+  if (url.pathname === "/api/knolet/graph/layout" && request.method === "GET") {
+    send(response, 200, await readGraphLayout());
+    return;
+  }
+
+  if (url.pathname === "/api/knolet/graph/layout" && request.method === "POST") {
+    const payload = await parseBody(request);
+    send(response, 200, await saveGraphLayout(payload));
+    return;
+  }
+
+  if (url.pathname === "/api/knolet/graph/layout" && request.method === "DELETE") {
+    send(response, 200, await resetGraphLayout());
     return;
   }
 

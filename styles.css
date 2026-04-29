@@ -632,7 +632,15 @@ textarea {
   gap: 10px;
 }
 
-.graph-visual-section h3 {
+.graph-visual-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.graph-visual-section h3,
+.graph-node-edge-grid h4 {
   margin: 0;
   font-size: 0.95rem;
 }
@@ -723,6 +731,11 @@ textarea {
 .graph-svg-node {
   cursor: pointer;
   outline: none;
+  touch-action: none;
+}
+
+.graph-svg-node[data-dragging="true"] {
+  cursor: grabbing;
 }
 
 .graph-svg-node .graph-node-ring {
@@ -735,6 +748,10 @@ textarea {
 .graph-svg-node[data-selected="true"] .graph-node-ring,
 .graph-svg-node:focus .graph-node-ring {
   opacity: 0.95;
+}
+
+.graph-svg-node[data-layout-saved="true"] .graph-node-ring {
+  stroke-dasharray: 7 5;
 }
 
 .graph-node-shape {
@@ -896,6 +913,38 @@ textarea {
 .graph-node-diagnostic-note {
   color: var(--muted);
   font-size: 0.84rem;
+}
+
+.graph-node-edge-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.graph-node-edge-grid > div {
+  display: grid;
+  gap: 7px;
+}
+
+.graph-node-edge-grid ul {
+  display: grid;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.graph-node-edge-grid li {
+  display: grid;
+  gap: 3px;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  overflow-wrap: anywhere;
+}
+
+.graph-node-edge-grid li[data-empty="true"] {
+  color: var(--muted);
 }
 
 .graph-detail-card pre {
@@ -1751,6 +1800,7 @@ code {
   .graph-summary-grid,
   .graph-layout,
   .graph-breakdown,
+  .graph-node-edge-grid,
   .diagnostic-columns,
   .diagnostics-grid,
   .diagnostics-body,
@@ -1782,6 +1832,7 @@ code {
   .topbar,
   .footer,
   .panel-heading,
+  .graph-visual-header,
   .import-preview__summary {
     align-items: flex-start;
     flex-direction: column;

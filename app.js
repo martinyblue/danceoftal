@@ -6,6 +6,9 @@ const state = {
   lastRuntimePlan: null,
   lastGraphPreview: null,
   selectedGraphNodeId: "",
+  graphLayout: null,
+  graphLayoutDirty: false,
+  graphLayoutDrag: null,
 };
 
 const templates = {
@@ -135,6 +138,8 @@ const elements = {
   runtimePlanPreview: document.querySelector("#runtimePlanPreview"),
   refreshGraphPreview: document.querySelector("#refreshGraphPreview"),
   saveGraphModel: document.querySelector("#saveGraphModel"),
+  saveGraphLayout: document.querySelector("#saveGraphLayout"),
+  resetGraphLayout: document.querySelector("#resetGraphLayout"),
   graphPreview: document.querySelector("#graphPreview"),
   refreshRuns: document.querySelector("#refreshRuns"),
   runForm: document.querySelector("#runForm"),
@@ -1020,6 +1025,37 @@ function strongerGraphLevel(current = "ok", next = "ok") {
   return graphLevelRank[next] > graphLevelRank[current] ? next : current;
 }
 
+function clampGraphCoordinate(value, min, max) {
+  return Math.min(Math.max(value, min), max);
+}
+
+function graphLayoutPositions(layout = state.graphLayout) {
+  return layout?.positions || {};
+}
+
+function graphLayoutPositionCount(layout = state.graphLayout) {
+  return Object.keys(graphLayoutPositions(layout)).length;
+}
+
+function graphLayoutStatusText() {
+  if (state.graphLayoutDirty) {
+    return "layout 저장 필요";
+  }
+  if (state.graphLayout?.exists) {
+    return `저장 layout ${graphLayoutPositionCount()}개`;
+  }
+  return "자동 layout";
+}
+
+function updateGraphLayoutStatus() {
+  const status = elements.graphPreview.querySelector("#graphLayoutStatus");
+  if (!status) {
+    return;
+  }
+  status.dataset.state = state.graphLayoutDirty ? "error" : state.graphLayout?.exists ? "ok" : "idle";
+  status.textContent = graphLayoutStatusText();
+}
+
 function graphDiagnosticIndex(graph) {
   const nodeIds = new Set((graph.nodes || []).map((node) => node.id));
   const edgeIds = new Set((graph.edges || []).map((edge) => edge.id));
@@ -1052,7 +1088,7 @@ function graphLayerIndex(node) {
   return layerIndex >= 0 ? layerIndex : 1;
 }
 
-function layoutGraph(graph) {
+function layoutGraph(graph, savedPositions = {}) {
   const layerNodes = graphLayers.map(() => []);
   for (const node of graph.nodes || []) {
     layerNodes[graphLayerIndex(node)].push(node);
@@ -1073,12 +1109,19 @@ function layoutGraph(graph) {
     const x = graphCanvasLeft + layerIndex * graphLayerGap;
     const startY = graphCanvasTop + Math.max(0, (maxRows - nodes.length) * graphRowGap) / 2;
     nodes.forEach((node, rowIndex) => {
+      const saved = savedPositions[node.id] || {};
+      const savedX = Number(saved.x);
+      const savedY = Number(saved.y);
+      const hasSavedPosition = Number.isFinite(savedX) && Number.isFinite(savedY);
       positions.set(node.id, {
-        x,
-        y: startY + rowIndex * graphRowGap,
+        x: hasSavedPosition ? clampGraphCoordinate(savedX, 18, width - graphNodeWidth - 18) : x,
+        y: hasSavedPosition
+          ? clampGraphCoordinate(savedY, graphCanvasTop, height - graphNodeHeight - 18)
+          : startY + rowIndex * graphRowGap,
         width: graphNodeWidth,
         height: graphNodeHeight,
         layerIndex,
+        saved: hasSavedPosition,
       });
     });
   });
@@ -1126,6 +1169,9 @@ function renderGraphNode(node, position, selectedNodeId, diagnosticsIndex) {
       data-type="${escapeHtml(node.type)}"
       data-level="${level}"
       data-selected="${selected}"
+      data-layout-x="${position.x}"
+      data-layout-y="${position.y}"
+      data-layout-saved="${position.saved ? "true" : "false"}"
     >
       <rect class="graph-node-ring" x="${position.x - 6}" y="${position.y - 6}" width="${position.width + 12}" height="${position.height + 12}" rx="12" />
       ${graphNodeShape(node, position)}
@@ -1216,13 +1262,13 @@ function renderGraphEdge(edge, layout, diagnosticsIndex, edgeIndex) {
   `;
 }
 
-function renderGraphCanvas(graph, selectedNodeId, diagnosticsIndex) {
+function renderGraphCanvas(graph, selectedNodeId, diagnosticsIndex, savedPositions = {}) {
   const nodes = graph.nodes || [];
   if (!nodes.length) {
     return `<div class="graph-canvas-shell"><p class="empty">Graph node가 없습니다.</p></div>`;
   }
 
-  const layout = layoutGraph(graph);
+  const layout = layoutGraph(graph, savedPositions);
   const bands = graphLayers
     .map((layer, index) => {
       const x = graphCanvasLeft + index * graphLayerGap - 12;
@@ -1242,7 +1288,7 @@ function renderGraphCanvas(graph, selectedNodeId, diagnosticsIndex) {
     .join("");
 
   return `
-    <div class="graph-canvas-shell" data-status="${escapeHtml(graph.status || "unknown")}">
+    <div class="graph-canvas-shell" data-status="${escapeHtml(graph.status || "unknown")}" data-layout="${graphLayoutPositionCount() ? "saved" : "auto"}">
       <svg class="graph-canvas" viewBox="0 0 ${layout.width} ${layout.height}" width="${layout.width}" height="${layout.height}" role="img" aria-label="${escapeHtml(graph.source_spec?.name || "Knolet graph visualization")}">
         <defs>
           <marker id="graph-arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
@@ -1275,11 +1321,33 @@ function graphNodeButton(node, selectedNodeId, diagnosticsIndex) {
   `;
 }
 
-function renderGraphNodeDetail(node, diagnosticsIndex = graphDiagnosticIndex({ nodes: [], edges: [], diagnostics: [] })) {
+function graphEdgeDetailItems(edges, emptyText) {
+  if (!edges.length) {
+    return `<li data-empty="true"><span>${escapeHtml(emptyText)}</span></li>`;
+  }
+  return edges
+    .map(
+      (edge) => `
+        <li>
+          <strong>${escapeHtml(edge.type)}</strong>
+          <span>${escapeHtml(edge.from)} -> ${escapeHtml(edge.to)}</span>
+        </li>
+      `,
+    )
+    .join("");
+}
+
+function renderGraphNodeDetail(
+  node,
+  diagnosticsIndex = graphDiagnosticIndex({ nodes: [], edges: [], diagnostics: [] }),
+  graph = {},
+) {
   if (!node) {
     return `<p class="empty">왼쪽에서 graph node를 선택하세요.</p>`;
   }
   const diagnostics = diagnosticsIndex.nodeItems.get(node.id) || [];
+  const incomingEdges = (graph.edges || []).filter((edge) => edge.to === node.id);
+  const outgoingEdges = (graph.edges || []).filter((edge) => edge.from === node.id);
   const diagnosticList = diagnostics.length
     ? `
       <ul class="graph-node-diagnostics">
@@ -1301,6 +1369,16 @@ function renderGraphNodeDetail(node, diagnosticsIndex = graphDiagnosticIndex({ n
       <strong>${escapeHtml(node.label || node.id)}</strong>
       <span>${escapeHtml(node.type)} / ${escapeHtml(node.id)}</span>
       ${diagnosticList}
+      <div class="graph-node-edge-grid">
+        <div>
+          <h4>Incoming edges</h4>
+          <ul>${graphEdgeDetailItems(incomingEdges, "들어오는 edge 없음")}</ul>
+        </div>
+        <div>
+          <h4>Outgoing edges</h4>
+          <ul>${graphEdgeDetailItems(outgoingEdges, "나가는 edge 없음")}</ul>
+        </div>
+      </div>
       <pre><code>${escapeHtml(JSON.stringify(node.data || {}, null, 2))}</code></pre>
     </div>
   `;
@@ -1308,6 +1386,7 @@ function renderGraphNodeDetail(node, diagnosticsIndex = graphDiagnosticIndex({ n
 
 function renderGraphPreview(payload, selectedNodeId = "") {
   state.lastGraphPreview = payload;
+  state.graphLayout = payload.layout || state.graphLayout || { exists: false, positions: {} };
   const graph = payload.graph || {};
   const summary = graph.summary || {};
   const statusState = summary.ready ? "ok" : "error";
@@ -1342,7 +1421,7 @@ function renderGraphPreview(payload, selectedNodeId = "") {
   const selectedNode =
     nodes.find((node) => node.id === (selectedNodeId || state.selectedGraphNodeId)) || nodes[0] || null;
   state.selectedGraphNodeId = selectedNode?.id || "";
-  const graphCanvas = renderGraphCanvas(graph, state.selectedGraphNodeId, diagnosticsIndex);
+  const graphCanvas = renderGraphCanvas(graph, state.selectedGraphNodeId, diagnosticsIndex, graphLayoutPositions());
   const edges = (graph.edges || [])
     .map(
       (edge) => `
@@ -1367,7 +1446,10 @@ function renderGraphPreview(payload, selectedNodeId = "") {
     </div>
     <div class="import-summary-grid graph-summary-grid">${cards}</div>
     <div class="graph-visual-section">
-      <h3>Graph visualization</h3>
+      <div class="graph-visual-header">
+        <h3>Graph visualization</h3>
+        <span id="graphLayoutStatus" class="asset-pill" data-state="${state.graphLayoutDirty ? "error" : state.graphLayout?.exists ? "ok" : "idle"}">${escapeHtml(graphLayoutStatusText())}</span>
+      </div>
       ${graphCanvas}
     </div>
     <div class="graph-layout">
@@ -1379,7 +1461,7 @@ function renderGraphPreview(payload, selectedNodeId = "") {
       </div>
       <div>
         <h3>Selected node detail</h3>
-        <div id="graphNodeDetail">${renderGraphNodeDetail(selectedNode, diagnosticsIndex)}</div>
+        <div id="graphNodeDetail">${renderGraphNodeDetail(selectedNode, diagnosticsIndex, graph)}</div>
       </div>
     </div>
     <div class="graph-layout">
@@ -1423,7 +1505,7 @@ function selectGraphNode(nodeId) {
   const diagnosticsIndex = graphDiagnosticIndex(graph);
   const detail = elements.graphPreview.querySelector("#graphNodeDetail");
   if (detail) {
-    detail.innerHTML = renderGraphNodeDetail(node, diagnosticsIndex);
+    detail.innerHTML = renderGraphNodeDetail(node, diagnosticsIndex, graph);
   }
 
   for (const item of elements.graphPreview.querySelectorAll("[data-graph-node]")) {
@@ -1438,9 +1520,103 @@ function selectGraphNode(nodeId) {
   }
 }
 
+function svgPoint(svg, clientX, clientY) {
+  if (svg.createSVGPoint && svg.getScreenCTM()) {
+    const point = svg.createSVGPoint();
+    point.x = clientX;
+    point.y = clientY;
+    return point.matrixTransform(svg.getScreenCTM().inverse());
+  }
+  const rect = svg.getBoundingClientRect();
+  const viewBox = svg.viewBox.baseVal;
+  return {
+    x: ((clientX - rect.left) / rect.width) * viewBox.width,
+    y: ((clientY - rect.top) / rect.height) * viewBox.height,
+  };
+}
+
+function beginGraphDrag(event, item) {
+  if (event.button !== undefined && event.button !== 0) {
+    return;
+  }
+  event.preventDefault();
+  const svg = item.closest("svg");
+  if (!svg) {
+    return;
+  }
+  selectGraphNode(item.dataset.graphNode);
+  const point = svgPoint(svg, event.clientX, event.clientY);
+  state.graphLayoutDrag = {
+    nodeId: item.dataset.graphNode,
+    element: item,
+    svg,
+    pointerId: event.pointerId,
+    startX: point.x,
+    startY: point.y,
+    baseX: Number(item.dataset.layoutX) || 0,
+    baseY: Number(item.dataset.layoutY) || 0,
+    currentX: Number(item.dataset.layoutX) || 0,
+    currentY: Number(item.dataset.layoutY) || 0,
+    moved: false,
+  };
+  item.dataset.dragging = "true";
+  item.setPointerCapture?.(event.pointerId);
+}
+
+function continueGraphDrag(event) {
+  const drag = state.graphLayoutDrag;
+  if (!drag || event.pointerId !== drag.pointerId) {
+    return;
+  }
+  event.preventDefault();
+  const point = svgPoint(drag.svg, event.clientX, event.clientY);
+  const viewBox = drag.svg.viewBox.baseVal;
+  const nextX = clampGraphCoordinate(drag.baseX + point.x - drag.startX, 18, viewBox.width - graphNodeWidth - 18);
+  const nextY = clampGraphCoordinate(drag.baseY + point.y - drag.startY, graphCanvasTop, viewBox.height - graphNodeHeight - 18);
+  const dx = nextX - drag.baseX;
+  const dy = nextY - drag.baseY;
+  drag.currentX = nextX;
+  drag.currentY = nextY;
+  drag.moved ||= Math.abs(dx) > 1 || Math.abs(dy) > 1;
+  drag.element.setAttribute("transform", `translate(${dx} ${dy})`);
+}
+
+function finishGraphDrag(event) {
+  const drag = state.graphLayoutDrag;
+  if (!drag || event.pointerId !== drag.pointerId) {
+    return;
+  }
+  drag.element.releasePointerCapture?.(event.pointerId);
+  drag.element.dataset.dragging = "false";
+  drag.element.removeAttribute("transform");
+  state.graphLayoutDrag = null;
+
+  if (!drag.moved) {
+    return;
+  }
+
+  state.graphLayout ||= { exists: false, positions: {} };
+  state.graphLayout.positions ||= {};
+  state.graphLayout.positions[drag.nodeId] = {
+    x: Math.round(drag.currentX * 100) / 100,
+    y: Math.round(drag.currentY * 100) / 100,
+  };
+  state.graphLayoutDirty = true;
+  if (state.lastGraphPreview) {
+    state.lastGraphPreview.layout = state.graphLayout;
+    renderGraphPreview(state.lastGraphPreview, drag.nodeId);
+  } else {
+    updateGraphLayoutStatus();
+  }
+}
+
 function attachGraphPreviewEvents() {
   for (const item of elements.graphPreview.querySelectorAll("[data-graph-node]")) {
     item.addEventListener("click", () => selectGraphNode(item.dataset.graphNode));
+    item.addEventListener("pointerdown", (event) => beginGraphDrag(event, item));
+    item.addEventListener("pointermove", continueGraphDrag);
+    item.addEventListener("pointerup", finishGraphDrag);
+    item.addEventListener("pointercancel", finishGraphDrag);
     item.addEventListener("keydown", (event) => {
       if (event.key === "Enter" || event.key === " ") {
         event.preventDefault();
@@ -1630,6 +1806,7 @@ async function loadGraphPreview() {
     method: "POST",
     body: JSON.stringify(bindingPayload()),
   });
+  state.graphLayoutDirty = false;
   renderGraphPreview(payload);
   logAction(
     `Graph preview 완료: node ${payload.graph?.summary?.nodeCount || 0}개, edge ${payload.graph?.summary?.edgeCount || 0}개.`,
@@ -1645,6 +1822,39 @@ async function saveGraphModel() {
   elements.previewTitle.textContent = "knolet-graph.json 저장 완료";
   elements.previewBody.textContent = `${result.path}\nstatus: ${result.status}\nnodes: ${result.summary?.nodeCount || 0}\nedges: ${result.summary?.edgeCount || 0}`;
   logAction(`Knolet graph 저장 완료: ${result.path}`);
+}
+
+async function saveGraphLayout() {
+  const result = await request("/api/knolet/graph/layout", {
+    method: "POST",
+    body: JSON.stringify({
+      positions: graphLayoutPositions(),
+    }),
+  });
+  state.graphLayout = result.layout;
+  state.graphLayoutDirty = false;
+  if (state.lastGraphPreview) {
+    state.lastGraphPreview.layout = result.layout;
+    renderGraphPreview(state.lastGraphPreview, state.selectedGraphNodeId);
+  }
+  elements.previewTitle.textContent = "knolet-graph-layout.json 저장 완료";
+  elements.previewBody.textContent = `${result.path}\npositions: ${result.positionCount || 0}`;
+  logAction(`Knolet graph layout 저장 완료: ${result.path}`);
+}
+
+async function resetGraphLayout() {
+  const result = await request("/api/knolet/graph/layout", {
+    method: "DELETE",
+  });
+  state.graphLayout = result.layout;
+  state.graphLayoutDirty = false;
+  if (state.lastGraphPreview) {
+    state.lastGraphPreview.layout = result.layout;
+    renderGraphPreview(state.lastGraphPreview, state.selectedGraphNodeId);
+  }
+  elements.previewTitle.textContent = "graph layout 초기화 완료";
+  elements.previewBody.textContent = "저장된 위치를 지우고 자동 layout으로 돌아갔습니다.";
+  logAction("Knolet graph layout을 자동 layout으로 초기화했습니다.");
 }
 
 async function loadLauncherHandoff() {
@@ -2005,6 +2215,12 @@ elements.refreshGraphPreview.addEventListener("click", () =>
 );
 elements.saveGraphModel.addEventListener("click", () =>
   runAction(elements.saveGraphModel, saveGraphModel),
+);
+elements.saveGraphLayout.addEventListener("click", () =>
+  runAction(elements.saveGraphLayout, saveGraphLayout),
+);
+elements.resetGraphLayout.addEventListener("click", () =>
+  runAction(elements.resetGraphLayout, resetGraphLayout),
 );
 elements.refreshRuns.addEventListener("click", () => runAction(elements.refreshRuns, loadRuns));
 elements.runForm.addEventListener("submit", createRun);

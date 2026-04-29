@@ -1,6 +1,6 @@
 # dance-of-tal Local Manager
 
-Version: `0.3.6`
+Version: `0.3.7`
 
 This repository contains a local-first manager for `dance-of-tal` style assets.
 It is built for the project owner, not first-time visitors. The local UI creates
@@ -173,6 +173,9 @@ dot-studio doctor . --verbose
 - render the saved/API Knolet graph model as an SVG node-link graph with typed
   node shapes, edge labels, diagnostics highlighting, and list/detail selection
   syncing
+- drag graph nodes in Manager, save position overrides to
+  `.dance-of-tal/knolet-graph-layout.json`, reset back to automatic layout, and
+  inspect incoming/outgoing edges for the selected node
 
 ## Knolet Product Direction
 
@@ -252,7 +255,9 @@ skeleton.
 The `Knolet Graph Preview` lifts the KnoletSpec and RuntimePlan into
 `.dance-of-tal/knolet-graph.json`: Source, Persona, Skill, Agent, Workflow Step,
 Evaluation, and Output nodes with graph diagnostics and a selected-node detail
-view for the future visual builder.
+view for the future visual builder. The Manager can also persist manual node
+position overrides in `.dance-of-tal/knolet-graph-layout.json`; nodes without a
+saved position continue to use the automatic layered layout.
 
 ## Operator Flow
 
@@ -274,6 +279,8 @@ Use the Manager at <http://127.0.0.1:8080> in this order:
    `runtime-plan.json`.
 9. Use `Knolet Graph Preview` to inspect node/edge counts, type breakdown,
    selected node details, graph diagnostics, and save `knolet-graph.json`.
+   Drag graph nodes when the automatic layout needs adjustment, then save or
+   reset the layout.
 10. Use the generated OpenCode handoff prompt as the starting point for a real
    `Document to Knolet App` run.
 11. Save the run inputs and captured outputs in `Workflow 산출물 저장`.
@@ -358,6 +365,9 @@ of the current local Manager, DOT Studio, OpenCode, and Registry foundation.
   canvas in Manager, with Source to Skill to Agent to Workflow Step to
   Output/Evaluation flow, typed shapes, edge labels, diagnostics styling, and
   graph/list/detail selection syncing.
+- `0.3.7` Graph Editing Foundation: add drag-based node positioning, persisted
+  layout overrides, automatic layout reset, and incoming/outgoing edge detail
+  views for selected graph nodes.
 - `0.4.0` Library and Sharing: turn DOT registry concepts into Knolet Library
   templates for SkillBlocks, AgentProfiles, WorkflowTemplates, EvaluationPacks,
   and Knowledge App Templates.
@@ -402,6 +412,10 @@ a package version bump plus a Git commit pushed to `martinyblue/danceoftal`.
 
 ## Version Notes
 
+- `0.3.7`: added graph node dragging in Manager, saved layout overrides in
+  `.dance-of-tal/knolet-graph-layout.json`, automatic layout reset support,
+  graph layout API endpoints, and incoming/outgoing edge detail lists for the
+  selected node.
 - `0.3.6`: added the Manager graph visualization canvas with layered SVG
   node-link rendering, type-specific node shapes/colors, typed edge labels,
   diagnostics styling for blocked/error nodes and endpoint problems, and synced
