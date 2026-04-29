@@ -12,6 +12,7 @@ const { compileKnoletGraphModel } = require("./lib/knolet/graph-model");
 const { compileKnoletLibraryPackage } = require("./lib/knolet/library-package");
 const { compileKnoletLibraryInstallPlan } = require("./lib/knolet/library-install-plan");
 const { compileKnoletLibraryInstallExecution } = require("./lib/knolet/library-install-executor");
+const { readKnoletLibraryInventory } = require("./lib/knolet/library-inventory");
 
 const root = process.cwd();
 const workspaceRoot = path.join(root, ".dance-of-tal");
@@ -25,6 +26,7 @@ const knoletGraphLayoutPath = path.join(workspaceRoot, "knolet-graph-layout.json
 const knoletLibraryPackagePath = path.join(workspaceRoot, "knolet-library-package.json");
 const knoletLibraryInstallPlanPath = path.join(workspaceRoot, "knolet-library-install-plan.json");
 const knoletLibraryInstallExecutionPath = path.join(workspaceRoot, "knolet-library-install-execution.json");
+const knoletLibraryRoot = path.join(workspaceRoot, "library");
 const port = Number(process.env.PORT || 8080);
 const studioUrl = process.env.DOT_STUDIO_URL || "http://127.0.0.1:43110";
 const opencodeUrl = process.env.OPENCODE_URL || "http://127.0.0.1:43120";
@@ -1619,6 +1621,17 @@ async function executeLibraryInstall(payload = {}) {
   };
 }
 
+async function libraryInventory() {
+  const inventory = await readKnoletLibraryInventory(knoletLibraryRoot, { root });
+  return {
+    inventory,
+    diagnosticsByLevel: {
+      error: inventory.diagnostics.filter((item) => item.level === "error"),
+      warning: inventory.diagnostics.filter((item) => item.level === "warning"),
+    },
+  };
+}
+
 function normalizeGraphLayoutPositions(value = {}) {
   const positions = {};
   for (const [nodeId, position] of Object.entries(value || {})) {
@@ -2449,6 +2462,11 @@ async function route(request, response) {
   if (url.pathname === "/api/knolet/library/install/execute" && request.method === "POST") {
     const payload = await parseBody(request);
     send(response, 200, await executeLibraryInstall(payload));
+    return;
+  }
+
+  if (url.pathname === "/api/knolet/library/inventory" && request.method === "GET") {
+    send(response, 200, await libraryInventory());
     return;
   }
 

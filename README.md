@@ -1,6 +1,6 @@
 # dance-of-tal Local Manager
 
-Version: `0.4.2`
+Version: `0.4.3`
 
 This repository contains a local-first manager for `dance-of-tal` style assets.
 It is built for the project owner, not first-time visitors. The local UI creates
@@ -183,6 +183,8 @@ dot-studio doctor . --verbose
   templates into a target workspace
 - execute a reviewed Library Install Plan into local library records under
   `.dance-of-tal/library/<owner>/<stage>/`
+- inspect installed library templates, source bindings, and installation
+  manifests from the Manager
 
 ## Knolet Product Direction
 
@@ -280,6 +282,10 @@ review before any future install executor writes templates into the workspace.
 The `Knolet Library Install Execution` step writes installed template records,
 source binding records, and an installation manifest under `.dance-of-tal/library/`.
 It refuses to execute blocked plans or packages that copy source documents.
+
+The `Knolet Library Inventory` view reads `.dance-of-tal/library/` back into the
+Manager so installed templates, source bindings, and installation manifests can
+be inspected after execution.
 
 ## Operator Flow
 

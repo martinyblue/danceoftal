@@ -365,6 +365,18 @@ and an installation manifest under `.dance-of-tal/library/<owner>/<stage>/`.
 Required source bindings must be confirmed before execution, and packages that
 copy source documents are refused.
 
+Implemented in `0.4.3`:
+
+- `lib/knolet/library-inventory.js`
+- `GET /api/knolet/library/inventory`
+- Manager `Knolet Library Inventory` panel
+- `test/knolet-library-inventory.test.js`
+
+The inventory reader scans `.dance-of-tal/library/` and summarizes installed
+templates, source binding records, and installation manifests. Invalid library
+JSON is reported as a warning so one bad local record does not hide the rest of
+the installed library.
+
 ## Phase 7: Product Backend
 
 Goal: prepare for real commercial use.

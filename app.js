@@ -8,6 +8,7 @@ const state = {
   lastLibraryPackage: null,
   lastLibraryInstallPlan: null,
   lastLibraryInstallExecution: null,
+  lastLibraryInventory: null,
   selectedGraphNodeId: "",
   graphLayout: null,
   graphLayoutDirty: false,
@@ -153,6 +154,8 @@ const elements = {
   refreshLibraryInstallExecution: document.querySelector("#refreshLibraryInstallExecution"),
   executeLibraryInstall: document.querySelector("#executeLibraryInstall"),
   libraryInstallExecutionPreview: document.querySelector("#libraryInstallExecutionPreview"),
+  refreshLibraryInventory: document.querySelector("#refreshLibraryInventory"),
+  libraryInventory: document.querySelector("#libraryInventory"),
   refreshRuns: document.querySelector("#refreshRuns"),
   runForm: document.querySelector("#runForm"),
   runTitle: document.querySelector("#runTitle"),
@@ -1771,6 +1774,100 @@ function renderLibraryInstallExecutionPreview(payload) {
   `;
 }
 
+function renderLibraryInventory(payload) {
+  state.lastLibraryInventory = payload;
+  const inventory = payload.inventory || {};
+  const summary = inventory.summary || {};
+  const records = inventory.records || {};
+  const statusState = summary.ready ? "ok" : "error";
+  const cards = [
+    ["Stages", summary.stageCount || 0],
+    ["Templates", summary.templateCount || 0],
+    ["Sources", summary.sourceBindingCount || 0],
+    ["Installs", summary.installationCount || 0],
+    ["Diagnostics", `${summary.errorCount || 0} error / ${summary.warningCount || 0} warning`],
+  ]
+    .map(
+      ([label, value]) => `
+        <article class="import-summary-card" data-state="${label === "Diagnostics" ? statusState : "ok"}">
+          <span>${escapeHtml(label)}</span>
+          <strong>${escapeHtml(value)}</strong>
+        </article>
+      `,
+    )
+    .join("");
+  const templates = (records.templates || [])
+    .map(
+      (record) => `
+        <li>
+          <strong>${escapeHtml(record.template_id)}</strong>
+          <span>${escapeHtml(record.template_type)} / ${escapeHtml(record.path)}</span>
+        </li>
+      `,
+    )
+    .join("");
+  const sources = (records.source_bindings || [])
+    .map(
+      (record) => `
+        <li data-required="${record.required ? "true" : "false"}">
+          <strong>${escapeHtml(record.label || record.source_id)}</strong>
+          <span>${escapeHtml(record.status || "unknown")} / ${escapeHtml(record.target_source_id || "unbound")}</span>
+        </li>
+      `,
+    )
+    .join("");
+  const installations = (records.installations || [])
+    .map(
+      (record) => `
+        <li>
+          <strong>${escapeHtml(record.source_package_id || "source package")}</strong>
+          <span>${escapeHtml(record.writeCount)} writes / ${escapeHtml(record.path)}</span>
+        </li>
+      `,
+    )
+    .join("");
+  const errors = payload.diagnosticsByLevel?.error || [];
+  const warnings = payload.diagnosticsByLevel?.warning || [];
+
+  elements.libraryInventory.innerHTML = `
+    <div class="import-preview__summary">
+      <div>
+        <strong>${escapeHtml(inventory.root || ".dance-of-tal/library")}</strong>
+        <p>설치된 Knolet library record를 읽었습니다.</p>
+      </div>
+      <span class="asset-pill" data-state="${statusState}">${summary.ready ? "ready" : "check"}</span>
+    </div>
+    <div class="import-summary-grid graph-summary-grid">${cards}</div>
+    <div class="graph-layout">
+      <div>
+        <h3>Installed templates</h3>
+        <ul class="next-step-list">${templates || `<li data-required="false"><strong>Template 없음</strong><span>아직 설치된 library template이 없습니다.</span></li>`}</ul>
+      </div>
+      <div>
+        <h3>Source bindings</h3>
+        <ul class="next-step-list">${sources || `<li data-required="false"><strong>Source 없음</strong><span>설치된 source binding이 없습니다.</span></li>`}</ul>
+      </div>
+    </div>
+    <div class="runtime-plan-section">
+      <h3>Installations</h3>
+      <ul class="next-step-list">${installations || `<li data-required="false"><strong>Installation 없음</strong><span>설치 manifest가 없습니다.</span></li>`}</ul>
+    </div>
+    <div class="runtime-plan-section">
+      <h3>Inventory diagnostics</h3>
+      <div class="diagnostic-columns">
+        <div>
+          <h4>Error</h4>
+          <ul class="import-diagnostics">${diagnosticItems(errors)}</ul>
+        </div>
+        <div>
+          <h4>Warning</h4>
+          <ul class="import-diagnostics">${diagnosticItems(warnings)}</ul>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
 function selectGraphNode(nodeId) {
   const graph = state.lastGraphPreview?.graph || {};
   const node = (graph.nodes || []).find((item) => item.id === nodeId);
@@ -2162,6 +2259,7 @@ async function executeLibraryInstall() {
     body: JSON.stringify(bindingPayload()),
   });
   renderLibraryInstallExecutionPreview(result);
+  await loadLibraryInventory();
   elements.previewTitle.textContent = result.ok ? "library install 완료" : "library install 차단됨";
   elements.previewBody.textContent = result.ok
     ? `${result.path}\nstatus: ${result.status}\nwrites: ${result.writes?.length || 0}`
@@ -2170,6 +2268,14 @@ async function executeLibraryInstall() {
     result.ok
       ? `Knolet library install 실행 완료: ${result.writes?.length || 0}개 파일 기록.`
       : `Knolet library install 차단: error ${result.summary?.errorCount || 0}개.`,
+  );
+}
+
+async function loadLibraryInventory() {
+  const payload = await request("/api/knolet/library/inventory");
+  renderLibraryInventory(payload);
+  logAction(
+    `Library inventory 확인: templates ${payload.inventory?.summary?.templateCount || 0}개, installs ${payload.inventory?.summary?.installationCount || 0}개.`,
   );
 }
 
@@ -2589,6 +2695,9 @@ elements.refreshLibraryInstallExecution.addEventListener("click", () =>
 elements.executeLibraryInstall.addEventListener("click", () =>
   runAction(elements.executeLibraryInstall, executeLibraryInstall),
 );
+elements.refreshLibraryInventory.addEventListener("click", () =>
+  runAction(elements.refreshLibraryInventory, loadLibraryInventory),
+);
 elements.refreshRuns.addEventListener("click", () => runAction(elements.refreshRuns, loadRuns));
 elements.runForm.addEventListener("submit", createRun);
 elements.saveRunOutputs.addEventListener("click", () =>
@@ -2644,6 +2753,9 @@ loadLibraryInstallPlan().catch((error) => {
 });
 loadLibraryInstallExecution().catch((error) => {
   elements.libraryInstallExecutionPreview.innerHTML = `<p class="empty">${error.message}</p>`;
+});
+loadLibraryInventory().catch((error) => {
+  elements.libraryInventory.innerHTML = `<p class="empty">${error.message}</p>`;
 });
 loadLauncherHandoff().catch((error) => {
   elements.launcherHandoff.innerHTML = `<p class="empty">${error.message}</p>`;
