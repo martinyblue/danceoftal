@@ -5,6 +5,7 @@ const state = {
   bindingDraft: null,
   lastRuntimePlan: null,
   lastGraphPreview: null,
+  selectedGraphNodeId: "",
 };
 
 const templates = {
@@ -990,23 +991,316 @@ function renderRuntimePlanPreview(payload) {
   `;
 }
 
-function graphNodeButton(node) {
+const graphLayers = [
+  { key: "source", label: "Source", types: ["source"] },
+  { key: "persona-skill", label: "Persona / Skill", types: ["persona", "skill"] },
+  { key: "agent", label: "Agent", types: ["agent"] },
+  { key: "workflow-step", label: "Workflow Step", types: ["workflow_step"] },
+  { key: "output-evaluation", label: "Output / Evaluation", types: ["output", "evaluation"] },
+];
+const graphTypeOrder = ["source", "persona", "skill", "agent", "workflow_step", "output", "evaluation"];
+const graphFlowReversedEdgeTypes = new Set(["binds_to", "uses_persona", "has_skill", "evaluates"]);
+const graphLevelRank = { ok: 0, warning: 1, error: 2 };
+const graphNodeWidth = 166;
+const graphNodeHeight = 74;
+const graphLayerGap = 188;
+const graphRowGap = 100;
+const graphCanvasLeft = 34;
+const graphCanvasTop = 62;
+
+function compactGraphText(value, limit = 28) {
+  const text = String(value || "").replace(/\s+/g, " ").trim();
+  if (text.length <= limit) {
+    return text;
+  }
+  return `${text.slice(0, Math.max(0, limit - 3))}...`;
+}
+
+function strongerGraphLevel(current = "ok", next = "ok") {
+  return graphLevelRank[next] > graphLevelRank[current] ? next : current;
+}
+
+function graphDiagnosticIndex(graph) {
+  const nodeIds = new Set((graph.nodes || []).map((node) => node.id));
+  const edgeIds = new Set((graph.edges || []).map((edge) => edge.id));
+  const nodeLevels = new Map();
+  const edgeLevels = new Map();
+  const nodeItems = new Map();
+  const edgeItems = new Map();
+
+  const addDiagnostic = (items, levels, id, item) => {
+    const level = item.level === "error" ? "error" : item.level === "warning" ? "warning" : "ok";
+    items.set(id, [...(items.get(id) || []), item]);
+    levels.set(id, strongerGraphLevel(levels.get(id) || "ok", level));
+  };
+
+  for (const item of graph.diagnostics || []) {
+    const diagnosticPath = String(item.path || "");
+    if (nodeIds.has(diagnosticPath)) {
+      addDiagnostic(nodeItems, nodeLevels, diagnosticPath, item);
+    }
+    if (edgeIds.has(diagnosticPath)) {
+      addDiagnostic(edgeItems, edgeLevels, diagnosticPath, item);
+    }
+  }
+
+  return { nodeLevels, edgeLevels, nodeItems, edgeItems };
+}
+
+function graphLayerIndex(node) {
+  const layerIndex = graphLayers.findIndex((layer) => layer.types.includes(node.type));
+  return layerIndex >= 0 ? layerIndex : 1;
+}
+
+function layoutGraph(graph) {
+  const layerNodes = graphLayers.map(() => []);
+  for (const node of graph.nodes || []) {
+    layerNodes[graphLayerIndex(node)].push(node);
+  }
+  for (const nodes of layerNodes) {
+    nodes.sort((left, right) => {
+      const typeDelta = graphTypeOrder.indexOf(left.type) - graphTypeOrder.indexOf(right.type);
+      return typeDelta || String(left.label || left.id).localeCompare(String(right.label || right.id));
+    });
+  }
+
+  const maxRows = Math.max(1, ...layerNodes.map((nodes) => nodes.length));
+  const width = graphCanvasLeft * 2 + graphNodeWidth + graphLayerGap * (graphLayers.length - 1);
+  const height = Math.max(350, graphCanvasTop + maxRows * graphRowGap + 46);
+  const positions = new Map();
+
+  layerNodes.forEach((nodes, layerIndex) => {
+    const x = graphCanvasLeft + layerIndex * graphLayerGap;
+    const startY = graphCanvasTop + Math.max(0, (maxRows - nodes.length) * graphRowGap) / 2;
+    nodes.forEach((node, rowIndex) => {
+      positions.set(node.id, {
+        x,
+        y: startY + rowIndex * graphRowGap,
+        width: graphNodeWidth,
+        height: graphNodeHeight,
+        layerIndex,
+      });
+    });
+  });
+
+  return { width, height, positions, layerNodes };
+}
+
+function graphNodeShape(node, position) {
+  const { x, y, width, height } = position;
+  const cx = x + width / 2;
+  const cy = y + height / 2;
+  if (node.type === "persona") {
+    return `<ellipse class="graph-node-shape" cx="${cx}" cy="${cy}" rx="${width / 2}" ry="${height / 2}" />`;
+  }
+  if (node.type === "skill") {
+    const bevel = 22;
+    return `<polygon class="graph-node-shape" points="${x + bevel},${y} ${x + width - bevel},${y} ${x + width},${cy} ${x + width - bevel},${y + height} ${x + bevel},${y + height} ${x},${cy}" />`;
+  }
+  if (node.type === "workflow_step") {
+    return `<polygon class="graph-node-shape" points="${cx},${y} ${x + width},${cy} ${cx},${y + height} ${x},${cy}" />`;
+  }
+  if (node.type === "evaluation") {
+    const cut = 18;
+    return `<polygon class="graph-node-shape" points="${x + cut},${y} ${x + width - cut},${y} ${x + width},${y + cut} ${x + width},${y + height - cut} ${x + width - cut},${y + height} ${x + cut},${y + height} ${x},${y + height - cut} ${x},${y + cut}" />`;
+  }
+  if (node.type === "source") {
+    const fold = 15;
+    return `<polygon class="graph-node-shape" points="${x},${y} ${x + width - fold},${y} ${x + width},${y + fold} ${x + width},${y + height} ${x},${y + height}" />`;
+  }
+  return `<rect class="graph-node-shape" x="${x}" y="${y}" width="${width}" height="${height}" rx="8" />`;
+}
+
+function renderGraphNode(node, position, selectedNodeId, diagnosticsIndex) {
+  const level = diagnosticsIndex.nodeLevels.get(node.id) || "ok";
+  const selected = node.id === selectedNodeId ? "true" : "false";
+  const centerX = position.x + position.width / 2;
   return `
-    <button class="graph-node-row" type="button" data-graph-node="${escapeHtml(node.id)}">
+    <g
+      class="graph-svg-node"
+      role="button"
+      tabindex="0"
+      focusable="true"
+      aria-pressed="${selected}"
+      data-graph-node="${escapeHtml(node.id)}"
+      data-type="${escapeHtml(node.type)}"
+      data-level="${level}"
+      data-selected="${selected}"
+    >
+      <rect class="graph-node-ring" x="${position.x - 6}" y="${position.y - 6}" width="${position.width + 12}" height="${position.height + 12}" rx="12" />
+      ${graphNodeShape(node, position)}
+      <text class="graph-node-type" x="${centerX}" y="${position.y + 18}">${escapeHtml(node.type)}</text>
+      <text class="graph-node-label" x="${centerX}" y="${position.y + 42}">${escapeHtml(compactGraphText(node.label || node.id, 23))}</text>
+      <text class="graph-node-id" x="${centerX}" y="${position.y + 60}">${escapeHtml(compactGraphText(node.id, 28))}</text>
+    </g>
+  `;
+}
+
+function graphDisplayEndpoints(edge) {
+  if (graphFlowReversedEdgeTypes.has(edge.type)) {
+    return { from: edge.to, to: edge.from };
+  }
+  return { from: edge.from, to: edge.to };
+}
+
+function graphEdgeMarker(level) {
+  if (level === "error") {
+    return "graph-arrow-error";
+  }
+  if (level === "warning") {
+    return "graph-arrow-warning";
+  }
+  return "graph-arrow";
+}
+
+function renderMissingGraphEdge(edge, layout, diagnosticsIndex, edgeIndex) {
+  const endpoints = graphDisplayEndpoints(edge);
+  const fromPosition = layout.positions.get(endpoints.from);
+  const toPosition = layout.positions.get(endpoints.to);
+  const anchor = fromPosition || toPosition;
+  const fallbackY = layout.height - 34 - (edgeIndex % 3) * 14;
+  const startX = anchor
+    ? fromPosition
+      ? anchor.x + anchor.width
+      : Math.max(24, anchor.x - 78)
+    : 44 + (edgeIndex % 4) * 164;
+  const startY = anchor ? anchor.y + anchor.height / 2 : fallbackY;
+  const endX = anchor
+    ? fromPosition
+      ? Math.min(layout.width - 28, startX + 78)
+      : anchor.x
+    : Math.min(layout.width - 44, startX + 112);
+  const endY = anchor ? startY : fallbackY;
+  const level = strongerGraphLevel(diagnosticsIndex.edgeLevels.get(edge.id) || "ok", "error");
+  const labelX = (startX + endX) / 2;
+  const labelY = startY - 8;
+  const labelWidth = Math.min(164, Math.max(74, edge.type.length * 7 + 34));
+
+  return `
+    <g class="graph-edge graph-edge--missing" data-graph-edge="${escapeHtml(edge.id)}" data-level="${level}" data-related="false">
+      <path class="graph-edge-path" marker-end="url(#${graphEdgeMarker(level)})" d="M ${startX} ${startY} L ${endX} ${endY}" />
+      <circle class="graph-missing-endpoint" cx="${endX}" cy="${endY}" r="7" />
+      <rect class="graph-edge-label-bg" x="${labelX - labelWidth / 2}" y="${labelY - 14}" width="${labelWidth}" height="20" rx="5" />
+      <text class="graph-edge-label" x="${labelX}" y="${labelY}">${escapeHtml(compactGraphText(edge.type, 19))}</text>
+    </g>
+  `;
+}
+
+function renderGraphEdge(edge, layout, diagnosticsIndex, edgeIndex) {
+  const endpoints = graphDisplayEndpoints(edge);
+  const fromPosition = layout.positions.get(endpoints.from);
+  const toPosition = layout.positions.get(endpoints.to);
+  if (!fromPosition || !toPosition) {
+    return renderMissingGraphEdge(edge, layout, diagnosticsIndex, edgeIndex);
+  }
+
+  const level = diagnosticsIndex.edgeLevels.get(edge.id) || "ok";
+  const leftToRight = toPosition.x >= fromPosition.x;
+  const startX = fromPosition.x + (leftToRight ? fromPosition.width : 0);
+  const startY = fromPosition.y + fromPosition.height / 2;
+  const endX = toPosition.x + (leftToRight ? 0 : toPosition.width);
+  const endY = toPosition.y + toPosition.height / 2;
+  const curve = Math.max(52, Math.abs(endX - startX) * 0.42);
+  const direction = leftToRight ? 1 : -1;
+  const path = `M ${startX} ${startY} C ${startX + curve * direction} ${startY}, ${endX - curve * direction} ${endY}, ${endX} ${endY}`;
+  const labelX = (startX + endX) / 2;
+  const labelY = (startY + endY) / 2 - 8;
+  const labelWidth = Math.min(136, Math.max(64, edge.type.length * 7 + 18));
+
+  return `
+    <g class="graph-edge" data-graph-edge="${escapeHtml(edge.id)}" data-level="${level}" data-related="false">
+      <path class="graph-edge-path" marker-end="url(#${graphEdgeMarker(level)})" d="${path}" />
+      <rect class="graph-edge-label-bg" x="${labelX - labelWidth / 2}" y="${labelY - 14}" width="${labelWidth}" height="20" rx="5" />
+      <text class="graph-edge-label" x="${labelX}" y="${labelY}">${escapeHtml(compactGraphText(edge.type, 17))}</text>
+    </g>
+  `;
+}
+
+function renderGraphCanvas(graph, selectedNodeId, diagnosticsIndex) {
+  const nodes = graph.nodes || [];
+  if (!nodes.length) {
+    return `<div class="graph-canvas-shell"><p class="empty">Graph node가 없습니다.</p></div>`;
+  }
+
+  const layout = layoutGraph(graph);
+  const bands = graphLayers
+    .map((layer, index) => {
+      const x = graphCanvasLeft + index * graphLayerGap - 12;
+      return `
+        <g class="graph-layer" data-layer="${escapeHtml(layer.key)}">
+          <rect class="graph-layer-band" x="${x}" y="18" width="${graphNodeWidth + 24}" height="${layout.height - 38}" rx="10" />
+          <text class="graph-layer-label" x="${x + graphNodeWidth / 2 + 12}" y="39">${escapeHtml(layer.label)}</text>
+        </g>
+      `;
+    })
+    .join("");
+  const edges = (graph.edges || [])
+    .map((edge, index) => renderGraphEdge(edge, layout, diagnosticsIndex, index))
+    .join("");
+  const renderedNodes = nodes
+    .map((node) => renderGraphNode(node, layout.positions.get(node.id), selectedNodeId, diagnosticsIndex))
+    .join("");
+
+  return `
+    <div class="graph-canvas-shell" data-status="${escapeHtml(graph.status || "unknown")}">
+      <svg class="graph-canvas" viewBox="0 0 ${layout.width} ${layout.height}" width="${layout.width}" height="${layout.height}" role="img" aria-label="${escapeHtml(graph.source_spec?.name || "Knolet graph visualization")}">
+        <defs>
+          <marker id="graph-arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+            <path d="M 0 0 L 8 3 L 0 6 z" fill="#68736d" />
+          </marker>
+          <marker id="graph-arrow-warning" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+            <path d="M 0 0 L 8 3 L 0 6 z" fill="#a86b12" />
+          </marker>
+          <marker id="graph-arrow-error" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+            <path d="M 0 0 L 8 3 L 0 6 z" fill="#8e3f32" />
+          </marker>
+        </defs>
+        <rect class="graph-canvas-bg" x="0" y="0" width="${layout.width}" height="${layout.height}" rx="10" />
+        <g class="graph-layers">${bands}</g>
+        <g class="graph-edges">${edges}</g>
+        <g class="graph-nodes">${renderedNodes}</g>
+      </svg>
+    </div>
+  `;
+}
+
+function graphNodeButton(node, selectedNodeId, diagnosticsIndex) {
+  const selected = node.id === selectedNodeId ? "true" : "false";
+  const level = diagnosticsIndex.nodeLevels.get(node.id) || "ok";
+  return `
+    <button class="graph-node-row" type="button" data-graph-node="${escapeHtml(node.id)}" data-level="${level}" data-selected="${selected}" aria-pressed="${selected}">
       <strong>${escapeHtml(node.label || node.id)}</strong>
       <span>${escapeHtml(node.type)} / ${escapeHtml(node.id)}</span>
     </button>
   `;
 }
 
-function renderGraphNodeDetail(node) {
+function renderGraphNodeDetail(node, diagnosticsIndex = graphDiagnosticIndex({ nodes: [], edges: [], diagnostics: [] })) {
   if (!node) {
     return `<p class="empty">왼쪽에서 graph node를 선택하세요.</p>`;
   }
+  const diagnostics = diagnosticsIndex.nodeItems.get(node.id) || [];
+  const diagnosticList = diagnostics.length
+    ? `
+      <ul class="graph-node-diagnostics">
+        ${diagnostics
+          .map(
+            (item) => `
+              <li data-level="${escapeHtml(item.level || "warning")}">
+                <strong>${escapeHtml(item.code || "diagnostic")}</strong>
+                <span>${escapeHtml(item.humanMessage || item.message || "")}</span>
+              </li>
+            `,
+          )
+          .join("")}
+      </ul>
+    `
+    : `<p class="graph-node-diagnostic-note" data-level="ok">Diagnostics 없음</p>`;
   return `
-    <div class="graph-detail-card">
+    <div class="graph-detail-card" data-level="${diagnosticsIndex.nodeLevels.get(node.id) || "ok"}">
       <strong>${escapeHtml(node.label || node.id)}</strong>
       <span>${escapeHtml(node.type)} / ${escapeHtml(node.id)}</span>
+      ${diagnosticList}
       <pre><code>${escapeHtml(JSON.stringify(node.data || {}, null, 2))}</code></pre>
     </div>
   `;
@@ -1018,6 +1312,7 @@ function renderGraphPreview(payload, selectedNodeId = "") {
   const summary = graph.summary || {};
   const statusState = summary.ready ? "ok" : "error";
   const breakdown = summary.typeBreakdown || {};
+  const diagnosticsIndex = graphDiagnosticIndex(graph);
   const cards = [
     ["Nodes", summary.nodeCount || 0],
     ["Edges", summary.edgeCount || 0],
@@ -1044,12 +1339,14 @@ function renderGraphPreview(payload, selectedNodeId = "") {
     )
     .join("");
   const nodes = graph.nodes || [];
-  const selectedNode = nodes.find((node) => node.id === selectedNodeId) || nodes[0] || null;
+  const selectedNode =
+    nodes.find((node) => node.id === (selectedNodeId || state.selectedGraphNodeId)) || nodes[0] || null;
+  state.selectedGraphNodeId = selectedNode?.id || "";
+  const graphCanvas = renderGraphCanvas(graph, state.selectedGraphNodeId, diagnosticsIndex);
   const edges = (graph.edges || [])
-    .slice(0, 12)
     .map(
       (edge) => `
-        <li>
+        <li data-level="${escapeHtml(diagnosticsIndex.edgeLevels.get(edge.id) || "ok")}">
           <strong>${escapeHtml(edge.type)}</strong>
           <span>${escapeHtml(edge.from)} -> ${escapeHtml(edge.to)}</span>
         </li>
@@ -1069,22 +1366,26 @@ function renderGraphPreview(payload, selectedNodeId = "") {
       <span class="asset-pill" data-state="${statusState}">${summary.ready ? "ready" : "blocked"}</span>
     </div>
     <div class="import-summary-grid graph-summary-grid">${cards}</div>
+    <div class="graph-visual-section">
+      <h3>Graph visualization</h3>
+      ${graphCanvas}
+    </div>
     <div class="graph-layout">
       <div>
         <h3>Type breakdown</h3>
         <ul class="graph-breakdown">${breakdownItems}</ul>
         <h3>Nodes</h3>
-        <div class="graph-node-list">${nodes.map(graphNodeButton).join("")}</div>
+        <div class="graph-node-list">${nodes.map((node) => graphNodeButton(node, state.selectedGraphNodeId, diagnosticsIndex)).join("")}</div>
       </div>
       <div>
         <h3>Selected node detail</h3>
-        <div id="graphNodeDetail">${renderGraphNodeDetail(selectedNode)}</div>
+        <div id="graphNodeDetail">${renderGraphNodeDetail(selectedNode, diagnosticsIndex)}</div>
       </div>
     </div>
     <div class="graph-layout">
       <div>
         <h3>Edges</h3>
-        <ul class="next-step-list">${edges || `<li data-required="true"><strong>edge 없음</strong><span>Graph 연결이 없습니다.</span></li>`}</ul>
+        <ul class="next-step-list graph-edge-list">${edges || `<li data-required="true"><strong>edge 없음</strong><span>Graph 연결이 없습니다.</span></li>`}</ul>
       </div>
       <div>
         <h3>Graph diagnostics</h3>
@@ -1106,15 +1407,44 @@ function renderGraphPreview(payload, selectedNodeId = "") {
     </details>
   `;
   attachGraphPreviewEvents();
+  if (selectedNode) {
+    selectGraphNode(selectedNode.id);
+  }
+}
+
+function selectGraphNode(nodeId) {
+  const graph = state.lastGraphPreview?.graph || {};
+  const node = (graph.nodes || []).find((item) => item.id === nodeId);
+  if (!node) {
+    return;
+  }
+
+  state.selectedGraphNodeId = node.id;
+  const diagnosticsIndex = graphDiagnosticIndex(graph);
+  const detail = elements.graphPreview.querySelector("#graphNodeDetail");
+  if (detail) {
+    detail.innerHTML = renderGraphNodeDetail(node, diagnosticsIndex);
+  }
+
+  for (const item of elements.graphPreview.querySelectorAll("[data-graph-node]")) {
+    const selected = item.dataset.graphNode === node.id ? "true" : "false";
+    item.dataset.selected = selected;
+    item.setAttribute("aria-pressed", selected);
+  }
+
+  for (const item of elements.graphPreview.querySelectorAll("[data-graph-edge]")) {
+    const edge = (graph.edges || []).find((candidate) => candidate.id === item.dataset.graphEdge);
+    item.dataset.related = edge && (edge.from === node.id || edge.to === node.id) ? "true" : "false";
+  }
 }
 
 function attachGraphPreviewEvents() {
-  for (const button of elements.graphPreview.querySelectorAll("[data-graph-node]")) {
-    button.addEventListener("click", () => {
-      const node = state.lastGraphPreview?.graph?.nodes?.find((item) => item.id === button.dataset.graphNode);
-      const detail = elements.graphPreview.querySelector("#graphNodeDetail");
-      if (detail) {
-        detail.innerHTML = renderGraphNodeDetail(node);
+  for (const item of elements.graphPreview.querySelectorAll("[data-graph-node]")) {
+    item.addEventListener("click", () => selectGraphNode(item.dataset.graphNode));
+    item.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        selectGraphNode(item.dataset.graphNode);
       }
     });
   }

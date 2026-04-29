@@ -250,6 +250,32 @@ Done when:
 
 Suggested version: `0.3.5`.
 
+## Phase 5.5: Manager Graph Visualization
+
+Goal: make the graph model readable as a visual node-link graph before deeper
+Studio editing work.
+
+Scope:
+
+- SVG-based graph canvas in Manager
+- layered layout from Source to Persona/Skill to Agent to Workflow Step to
+  Output/Evaluation
+- typed node shapes and colors
+- typed edge labels
+- selected-node syncing between the graph, node list, and detail panel
+- diagnostics styling for blocked/error nodes, unbound skills, and missing edge
+  endpoints
+
+Done when:
+
+- Manager shows the graph as an actual node-link image
+- nodes and edges are rendered from the API/saved `knolet-graph.json` model
+- clicking a node updates the existing detail panel
+- type breakdown, list UI, diagnostics, and graph visualization work together
+- the full local stack is verified on localhost
+
+Suggested version: `0.3.6`.
+
 ## Phase 6: Library and Sharing
 
 Goal: convert DOT registry ideas into a Knolet Library.

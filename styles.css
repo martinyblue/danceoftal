@@ -627,6 +627,193 @@ textarea {
   font-size: 0.95rem;
 }
 
+.graph-visual-section {
+  display: grid;
+  gap: 10px;
+}
+
+.graph-visual-section h3 {
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.graph-canvas-shell {
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fbfcfa;
+}
+
+.graph-canvas {
+  display: block;
+  min-width: 100%;
+  height: auto;
+}
+
+.graph-canvas-bg {
+  fill: #fbfcfa;
+}
+
+.graph-layer-band {
+  fill: rgba(238, 240, 236, 0.58);
+  stroke: rgba(217, 221, 214, 0.72);
+}
+
+.graph-layer:nth-child(2n) .graph-layer-band {
+  fill: rgba(255, 255, 255, 0.72);
+}
+
+.graph-layer-label {
+  fill: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 850;
+  text-anchor: middle;
+}
+
+.graph-edge {
+  opacity: 0.72;
+  transition:
+    opacity 140ms ease,
+    stroke-width 140ms ease;
+}
+
+.graph-edge[data-related="true"] {
+  opacity: 1;
+}
+
+.graph-edge-path {
+  fill: none;
+  stroke: #68736d;
+  stroke-width: 2.2;
+}
+
+.graph-edge[data-related="true"] .graph-edge-path {
+  stroke-width: 3;
+}
+
+.graph-edge[data-level="warning"] .graph-edge-path {
+  stroke: #a86b12;
+  stroke-dasharray: 7 5;
+}
+
+.graph-edge[data-level="error"] .graph-edge-path,
+.graph-edge--missing .graph-edge-path {
+  stroke: var(--accent-2);
+  stroke-dasharray: 6 5;
+}
+
+.graph-edge-label-bg {
+  fill: rgba(255, 255, 255, 0.92);
+  stroke: rgba(217, 221, 214, 0.78);
+}
+
+.graph-edge-label {
+  fill: var(--ink);
+  font-size: 0.72rem;
+  font-weight: 850;
+  text-anchor: middle;
+}
+
+.graph-missing-endpoint {
+  fill: #fff;
+  stroke: var(--accent-2);
+  stroke-width: 2.4;
+}
+
+.graph-svg-node {
+  cursor: pointer;
+  outline: none;
+}
+
+.graph-svg-node .graph-node-ring {
+  fill: transparent;
+  stroke: var(--ink);
+  stroke-width: 2;
+  opacity: 0;
+}
+
+.graph-svg-node[data-selected="true"] .graph-node-ring,
+.graph-svg-node:focus .graph-node-ring {
+  opacity: 0.95;
+}
+
+.graph-node-shape {
+  fill: #f3f6f8;
+  stroke: #68736d;
+  stroke-width: 1.6;
+}
+
+.graph-svg-node[data-type="source"] .graph-node-shape {
+  fill: #e8f3fb;
+  stroke: #2d6589;
+}
+
+.graph-svg-node[data-type="persona"] .graph-node-shape {
+  fill: #fff4d9;
+  stroke: #9a6a13;
+}
+
+.graph-svg-node[data-type="skill"] .graph-node-shape {
+  fill: #f7e8e3;
+  stroke: #9b4d39;
+}
+
+.graph-svg-node[data-type="agent"] .graph-node-shape {
+  fill: #e7f3ed;
+  stroke: var(--accent);
+}
+
+.graph-svg-node[data-type="workflow_step"] .graph-node-shape {
+  fill: #eeeafa;
+  stroke: #6650a4;
+}
+
+.graph-svg-node[data-type="output"] .graph-node-shape {
+  fill: #e5f4f1;
+  stroke: #34776e;
+}
+
+.graph-svg-node[data-type="evaluation"] .graph-node-shape {
+  fill: #f9eddf;
+  stroke: #9b641e;
+}
+
+.graph-svg-node[data-level="warning"] .graph-node-shape {
+  stroke: #a86b12;
+  stroke-width: 3;
+}
+
+.graph-svg-node[data-level="error"] .graph-node-shape {
+  stroke: var(--accent-2);
+  stroke-width: 3.2;
+}
+
+.graph-node-type,
+.graph-node-label,
+.graph-node-id {
+  pointer-events: none;
+  text-anchor: middle;
+}
+
+.graph-node-type {
+  fill: var(--muted);
+  font-size: 0.62rem;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.graph-node-label {
+  fill: var(--ink);
+  font-size: 0.84rem;
+  font-weight: 850;
+}
+
+.graph-node-id {
+  fill: var(--muted);
+  font-size: 0.64rem;
+  font-weight: 760;
+}
+
 .graph-breakdown,
 .graph-node-list {
   display: grid;
@@ -658,11 +845,57 @@ textarea {
   color: var(--ink);
 }
 
+.graph-node-row[data-selected="true"] {
+  border-color: var(--ink);
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+
+.graph-node-row[data-level="warning"],
+.graph-detail-card[data-level="warning"] {
+  border-color: rgba(183, 120, 22, 0.58);
+}
+
+.graph-node-row[data-level="error"],
+.graph-detail-card[data-level="error"] {
+  border-color: rgba(142, 63, 50, 0.62);
+}
+
 .graph-breakdown span,
 .graph-node-row span,
 .graph-detail-card span {
   color: var(--muted);
   line-height: 1.45;
+}
+
+.graph-node-diagnostics {
+  display: grid;
+  gap: 6px;
+  margin: 4px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.graph-node-diagnostics li,
+.graph-node-diagnostic-note {
+  display: grid;
+  gap: 3px;
+  margin: 0;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+
+.graph-node-diagnostics li[data-level="error"] {
+  border-color: rgba(142, 63, 50, 0.58);
+}
+
+.graph-node-diagnostics li[data-level="warning"] {
+  border-color: rgba(183, 120, 22, 0.58);
+}
+
+.graph-node-diagnostic-note {
+  color: var(--muted);
+  font-size: 0.84rem;
 }
 
 .graph-detail-card pre {
@@ -719,16 +952,19 @@ textarea {
 }
 
 .import-diagnostics li[data-level="error"],
-.next-step-list li[data-required="true"] {
+.next-step-list li[data-required="true"],
+.graph-edge-list li[data-level="error"] {
   border-color: rgba(142, 63, 50, 0.45);
 }
 
-.import-diagnostics li[data-level="warning"] {
+.import-diagnostics li[data-level="warning"],
+.graph-edge-list li[data-level="warning"] {
   border-color: rgba(183, 120, 22, 0.48);
 }
 
 .import-diagnostics li[data-level="ok"],
-.next-step-list li[data-required="false"] {
+.next-step-list li[data-required="false"],
+.graph-edge-list li[data-level="ok"] {
   border-color: rgba(36, 90, 70, 0.34);
 }
 

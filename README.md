@@ -1,6 +1,6 @@
 # dance-of-tal Local Manager
 
-Version: `0.3.1`
+Version: `0.3.6`
 
 This repository contains a local-first manager for `dance-of-tal` style assets.
 It is built for the project owner, not first-time visitors. The local UI creates
@@ -170,6 +170,9 @@ dot-studio doctor . --verbose
 - surface importer diagnostics for missing DOT directories, malformed JSON,
   unresolved DOT references, invalid workflow relation directions, and missing
   KnowledgeSource bindings
+- render the saved/API Knolet graph model as an SVG node-link graph with typed
+  node shapes, edge labels, diagnostics highlighting, and list/detail selection
+  syncing
 
 ## Knolet Product Direction
 
@@ -351,6 +354,10 @@ of the current local Manager, DOT Studio, OpenCode, and Registry foundation.
 - `0.3.5` Knolet Studio Graph Model: added a graph model compiler, Manager
   graph preview, type breakdown, selected-node details, graph diagnostics, and
   `.dance-of-tal/knolet-graph.json` saving for a future visual builder.
+- `0.3.6` Graph Visualization: render the Knolet graph model as a layered SVG
+  canvas in Manager, with Source to Skill to Agent to Workflow Step to
+  Output/Evaluation flow, typed shapes, edge labels, diagnostics styling, and
+  graph/list/detail selection syncing.
 - `0.4.0` Library and Sharing: turn DOT registry concepts into Knolet Library
   templates for SkillBlocks, AgentProfiles, WorkflowTemplates, EvaluationPacks,
   and Knowledge App Templates.
@@ -395,6 +402,10 @@ a package version bump plus a Git commit pushed to `martinyblue/danceoftal`.
 
 ## Version Notes
 
+- `0.3.6`: added the Manager graph visualization canvas with layered SVG
+  node-link rendering, type-specific node shapes/colors, typed edge labels,
+  diagnostics styling for blocked/error nodes and endpoint problems, and synced
+  graph/list/detail node selection.
 - `0.3.5`: added the Knolet graph model compiler and Manager `Knolet Graph
   Preview`, with Source/Persona/Skill/Agent/Workflow Step/Evaluation/Output
   nodes, typed edges, graph diagnostics, selected-node details, and save support
