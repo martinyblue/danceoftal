@@ -1,6 +1,6 @@
 # dance-of-tal Local Manager
 
-Version: `0.4.4`
+Version: `0.5.0`
 
 This repository contains a local-first manager for `dance-of-tal` style assets.
 It is built for the project owner, not first-time visitors. The local UI creates
@@ -187,6 +187,9 @@ dot-studio doctor . --verbose
   manifests from the Manager
 - enter target source ids for Library Install source rebindings before executing
   a package install
+- inspect `0.5.0` Product Backend readiness for product auth, data API,
+  workspace storage, source binding storage, run log storage, library installs,
+  and publish governance before commercial or production use
 
 ## Knolet Product Direction
 
@@ -357,7 +360,11 @@ product-owned infrastructure:
 The Manager launcher includes a `Commercial data boundary` card so a developer
 can see whether the current run is still using unsafe defaults. In development
 mode that card is advisory only and does not block the local launcher; in
-commercial/production modes it becomes the gate before product use.
+commercial/production modes it becomes the gate before product use. The
+`Product Backend Readiness` panel goes deeper: it lists local product artifacts,
+checks whether each backend surface is still local-first or server-backed, and
+blocks production readiness when inline KnowledgeSource content or local-only
+storage would keep customer data outside product-owned infrastructure.
 
 Recommended switch-over sequence:
 
@@ -406,11 +413,22 @@ of the current local Manager, DOT Studio, OpenCode, and Registry foundation.
 - `0.4.0` Library and Sharing: turn DOT registry concepts into Knolet Library
   templates for SkillBlocks, AgentProfiles, WorkflowTemplates, EvaluationPacks,
   and Knowledge App Templates.
-- `0.5.0` Product Backend: move customer auth, workspace data, source bindings,
-  run logs, and publish flows from local-first storage to product-owned
-  infrastructure.
+- `0.5.0` Product Backend Readiness: added a readiness model, API, tests, and
+  Manager panel that inspect product auth, data API, local artifacts,
+  workspace/source/run/library/publish storage surfaces, and inline source
+  content before production backend migration.
 
-Immediate implementation order for `0.3.0`:
+Next implementation order for `0.5.x`:
+
+1. Define the product data API contract for workspace snapshots, source binding
+   confirmations, run log events, library install records, and publish intents.
+2. Add a server-backed write adapter that is disabled unless
+   `DANCEOFTAL_STORAGE_MODE=server` and `DANCEOFTAL_DATA_API_URL` are set.
+3. Route save/execute endpoints through the adapter while preserving
+   development local-first behavior.
+4. Add team workspace permission checks and publish governance receipts.
+
+Historical implementation order for `0.3.0`:
 
 1. Add schema and validation helpers for `KnoletSpec v0.1`.
 2. Add DOT raw workspace scanner and parser with non-fatal diagnostics.
@@ -447,6 +465,20 @@ a package version bump plus a Git commit pushed to `martinyblue/danceoftal`.
 
 ## Version Notes
 
+- `0.5.0`: added Product Backend Readiness with a reusable readiness module,
+  Manager API/panel, production-mode blockers for local-only storage and inline
+  KnowledgeSource content, and tests for development, production, and
+  server-backed modes.
+- `0.4.4`: added Manager source rebinding inputs for Library Install Plan and
+  passed confirmed bindings into install execution preview/execute requests.
+- `0.4.3`: added Library Inventory reading for installed templates, source
+  binding records, and installation manifests under `.dance-of-tal/library/`.
+- `0.4.2`: added Library Install Execution preview/execute support that writes
+  local template records, source binding records, and install manifests.
+- `0.4.1`: added Library Install Plan preview/save support as a non-destructive
+  review boundary before installing shared templates.
+- `0.4.0`: added Knolet Library Package compilation and Manager preview/save
+  support for shareable templates without copying source documents.
 - `0.3.7`: added graph node dragging in Manager, saved layout overrides in
   `.dance-of-tal/knolet-graph-layout.json`, automatic layout reset support,
   graph layout API endpoints, and incoming/outgoing edge detail lists for the

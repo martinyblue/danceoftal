@@ -9,6 +9,7 @@ const state = {
   lastLibraryInstallPlan: null,
   lastLibraryInstallExecution: null,
   lastLibraryInventory: null,
+  lastProductBackendReadiness: null,
   librarySourceBindings: {},
   selectedGraphNodeId: "",
   graphLayout: null,
@@ -157,6 +158,8 @@ const elements = {
   libraryInstallExecutionPreview: document.querySelector("#libraryInstallExecutionPreview"),
   refreshLibraryInventory: document.querySelector("#refreshLibraryInventory"),
   libraryInventory: document.querySelector("#libraryInventory"),
+  refreshProductBackendReadiness: document.querySelector("#refreshProductBackendReadiness"),
+  productBackendReadiness: document.querySelector("#productBackendReadiness"),
   refreshRuns: document.querySelector("#refreshRuns"),
   runForm: document.querySelector("#runForm"),
   runTitle: document.querySelector("#runTitle"),
@@ -1897,6 +1900,118 @@ function renderLibraryInventory(payload) {
   `;
 }
 
+function renderProductBackendReadiness(payload) {
+  state.lastProductBackendReadiness = payload;
+  const summary = payload.summary || {};
+  const statusState = summary.ready ? (summary.warningCount ? "warning" : "ok") : "error";
+  const cards = [
+    ["Mode", summary.mode || "development"],
+    ["Surfaces", `${summary.readySurfaceCount || 0}/${summary.surfaceCount || 0}`],
+    ["Local artifacts", summary.localArtifactCount || 0],
+    ["Server backed", summary.serverBackedSurfaceCount || 0],
+    ["Diagnostics", `${summary.errorCount || 0} error / ${summary.warningCount || 0} warning`],
+  ]
+    .map(
+      ([label, value]) => `
+        <article class="import-summary-card" data-state="${label === "Diagnostics" ? statusState : "ok"}">
+          <span>${escapeHtml(label)}</span>
+          <strong>${escapeHtml(value)}</strong>
+        </article>
+      `,
+    )
+    .join("");
+  const surfaces = (payload.surfaces || [])
+    .map((surface) => {
+      const artifacts = (surface.localArtifacts || [])
+        .slice(0, 3)
+        .map((artifact) => artifact.path)
+        .join(", ");
+      const hiddenCount = Math.max(0, (surface.localArtifacts || []).length - 3);
+      const artifactDetail = surface.localArtifactCount
+        ? `${surface.localArtifactCount} local / ${artifacts}${hiddenCount ? ` 외 ${hiddenCount}개` : ""}`
+        : "local artifact 없음";
+      return `
+        <li data-required="${surface.state === "error" ? "true" : "false"}">
+          <strong>${escapeHtml(surface.title)}</strong>
+          <span>${escapeHtml(surface.status)} / ${escapeHtml(surface.storageMode || "env")}</span>
+          <small>${escapeHtml(surface.requirement || surface.detail || "")}</small>
+          <code>${escapeHtml(artifactDetail)}</code>
+        </li>
+      `;
+    })
+    .join("");
+  const nextActions = (payload.nextActions || [])
+    .map(
+      (action) => `
+        <li data-required="${action.required ? "true" : "false"}">
+          <strong>${escapeHtml(action.key)}</strong>
+          <span>${escapeHtml(action.detail)}</span>
+        </li>
+      `,
+    )
+    .join("");
+  const localArtifacts = (payload.localArtifacts || [])
+    .slice(0, 10)
+    .map(
+      (artifact) => `
+        <li>
+          <strong>${escapeHtml(artifact.label || artifact.kind)}</strong>
+          <span>${escapeHtml(artifact.path)}</span>
+        </li>
+      `,
+    )
+    .join("");
+  const hiddenArtifactCount = Math.max(0, (payload.localArtifacts || []).length - 10);
+  const errors = payload.diagnosticsByLevel?.error || [];
+  const warnings = payload.diagnosticsByLevel?.warning || [];
+  const readinessJson = JSON.stringify(payload, null, 2);
+
+  elements.productBackendReadiness.innerHTML = `
+    <div class="import-preview__summary">
+      <div>
+        <strong>Product backend readiness: ${escapeHtml(summary.status || "unknown")}</strong>
+        <p>customer auth, workspace data, source bindings, run logs, library installs, publish governance가 제품 소유 backend로 전환될 준비를 점검합니다.</p>
+      </div>
+      <span class="asset-pill" data-state="${statusState}">${summary.ready ? "ready" : "blocked"}</span>
+    </div>
+    <div class="import-summary-grid graph-summary-grid">${cards}</div>
+    <div class="graph-layout">
+      <div>
+        <h3>Backend surfaces</h3>
+        <ul class="next-step-list">${surfaces}</ul>
+      </div>
+      <div>
+        <h3>Next actions</h3>
+        <ul class="next-step-list">${nextActions}</ul>
+      </div>
+    </div>
+    <div class="runtime-plan-section">
+      <h3>Local artifacts</h3>
+      <ul class="next-step-list">
+        ${localArtifacts || `<li data-required="false"><strong>Local artifact 없음</strong><span>아직 점검할 로컬 product artifact가 없습니다.</span></li>`}
+        ${hiddenArtifactCount ? `<li data-required="false"><strong>추가 artifact</strong><span>${hiddenArtifactCount}개가 더 있습니다.</span></li>` : ""}
+      </ul>
+    </div>
+    <div class="runtime-plan-section">
+      <h3>Product backend diagnostics</h3>
+      <div class="diagnostic-columns">
+        <div>
+          <h4>Error</h4>
+          <ul class="import-diagnostics">${diagnosticItems(errors)}</ul>
+        </div>
+        <div>
+          <h4>Warning</h4>
+          <ul class="import-diagnostics">${diagnosticItems(warnings)}</ul>
+        </div>
+      </div>
+    </div>
+    <details class="spec-preview">
+      <summary>Product backend readiness JSON 전체 보기</summary>
+      <pre><code>${escapeHtml(readinessJson)}</code></pre>
+    </details>
+  `;
+}
+
 function selectGraphNode(nodeId) {
   const graph = state.lastGraphPreview?.graph || {};
   const node = (graph.nodes || []).find((item) => item.id === nodeId);
@@ -2305,6 +2420,14 @@ async function loadLibraryInventory() {
   renderLibraryInventory(payload);
   logAction(
     `Library inventory 확인: templates ${payload.inventory?.summary?.templateCount || 0}개, installs ${payload.inventory?.summary?.installationCount || 0}개.`,
+  );
+}
+
+async function loadProductBackendReadiness() {
+  const payload = await request("/api/knolet/product-backend/readiness");
+  renderProductBackendReadiness(payload);
+  logAction(
+    `Product backend readiness 확인: ${payload.summary?.status || "unknown"}, error ${payload.summary?.errorCount || 0}개.`,
   );
 }
 
@@ -2727,6 +2850,9 @@ elements.executeLibraryInstall.addEventListener("click", () =>
 elements.refreshLibraryInventory.addEventListener("click", () =>
   runAction(elements.refreshLibraryInventory, loadLibraryInventory),
 );
+elements.refreshProductBackendReadiness.addEventListener("click", () =>
+  runAction(elements.refreshProductBackendReadiness, loadProductBackendReadiness),
+);
 elements.refreshRuns.addEventListener("click", () => runAction(elements.refreshRuns, loadRuns));
 elements.runForm.addEventListener("submit", createRun);
 elements.saveRunOutputs.addEventListener("click", () =>
@@ -2785,6 +2911,9 @@ loadLibraryInstallExecution().catch((error) => {
 });
 loadLibraryInventory().catch((error) => {
   elements.libraryInventory.innerHTML = `<p class="empty">${error.message}</p>`;
+});
+loadProductBackendReadiness().catch((error) => {
+  elements.productBackendReadiness.innerHTML = `<p class="empty">${error.message}</p>`;
 });
 loadLauncherHandoff().catch((error) => {
   elements.launcherHandoff.innerHTML = `<p class="empty">${error.message}</p>`;

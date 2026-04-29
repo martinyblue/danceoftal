@@ -408,6 +408,27 @@ Done when:
 
 Suggested version: `0.5.0`.
 
+Implemented in `0.5.0`:
+
+- `lib/knolet/product-backend-readiness.js`
+- `GET /api/knolet/product-backend/readiness`
+- Manager `Product Backend Readiness` panel
+- `test/knolet-product-backend-readiness.test.js`
+
+The readiness layer inspects product auth, product data API configuration, local
+Knolet artifacts, workspace/source/run/library/publish storage surfaces, and
+inline KnowledgeSource content. Development mode remains advisory, while
+production mode blocks local-only storage and inline customer source content.
+
+Next `0.5.x` work:
+
+- define the server data API contract for workspace snapshots, source binding
+  confirmations, run log events, library install records, and publish intents
+- add a guarded server-backed write adapter
+- route save/execute endpoints through the adapter without breaking local-first
+  development mode
+- add team workspace permission checks and publish governance receipts
+
 ## Codex Implementation Prompt Shape
 
 Use this structure for implementation tasks:

@@ -622,7 +622,8 @@ textarea {
 .library-package-preview,
 .library-install-plan-preview,
 .library-install-execution-preview,
-.library-inventory {
+.library-inventory,
+.product-backend-readiness {
   display: grid;
   gap: 16px;
   padding: 16px;
