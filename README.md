@@ -1,6 +1,6 @@
 # dance-of-tal Local Manager
 
-Version: `0.5.5`
+Version: `0.5.6`
 
 This repository contains a local-first manager for `dance-of-tal` style assets.
 It is built for the project owner, not first-time visitors. The local UI creates
@@ -202,6 +202,8 @@ dot-studio doctor . --verbose
   bindings, run log appends, library installs, and publish requests
 - inspect `0.5.5` publish governance receipts for actor permission, publish
   target, artifact references, source-copy policy, and backend readiness
+- inspect `0.5.6` product backend connection plans that order auth, data API,
+  storage, adapter, permission, publish, write-switch, and smoke-test gates
 
 ## Knolet Product Direction
 
@@ -377,6 +379,9 @@ commercial/production modes it becomes the gate before product use. The
 checks whether each backend surface is still local-first or server-backed, and
 blocks production readiness when inline KnowledgeSource content or local-only
 storage would keep customer data outside product-owned infrastructure.
+The `Product Backend Connection Plan` panel then turns readiness, contract,
+adapter, permission, and publish-governance checks into one ordered sequence for
+connecting a real product backend.
 
 Recommended switch-over sequence:
 
@@ -434,8 +439,9 @@ of the current local Manager, DOT Studio, OpenCode, and Registry foundation.
 
 The local `0.5.x` product-backend foundation is complete through guarded
 readiness, API contract, adapter routing, permission checks, and publish
-governance receipts. The next step requires a real product-owned backend
-implementation and credentials rather than another local-only scaffold.
+governance receipts, plus a connection plan that names the next backend
+configuration gate. No further local-only scaffold is recommended before a real
+product-owned backend implementation and credentials are supplied.
 
 Historical implementation order for `0.3.0`:
 
@@ -474,6 +480,9 @@ a package version bump plus a Git commit pushed to `martinyblue/danceoftal`.
 
 ## Version Notes
 
+- `0.5.6`: added Product Backend Connection Plan with ordered auth/data API,
+  server storage, contract, adapter, team actor, publish governance, write
+  switch, and smoke-test gates, plus Manager API/panel and tests.
 - `0.5.5`: added publish governance receipts with actor permission checks,
   target/artifact validation, source-copy policy enforcement, backend readiness
   diagnostics, Manager API/panel, and tests.

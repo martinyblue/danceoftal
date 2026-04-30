@@ -30,6 +30,7 @@ const {
   compilePublishGovernanceReceipt,
   publishIntentFromLibraryPackage,
 } = require("./lib/knolet/publish-governance");
+const { compileProductBackendConnectionPlan } = require("./lib/knolet/product-backend-connection-plan");
 
 const root = process.cwd();
 const workspaceRoot = path.join(root, ".dance-of-tal");
@@ -1788,6 +1789,21 @@ async function productPublishGovernance() {
   });
 }
 
+async function productBackendConnectionPlan() {
+  const readiness = await productBackendReadiness();
+  const contract = compileProductBackendContract(readiness);
+  const adapter = previewProductBackendAdapter(readiness, contract);
+  const permissions = await productPermissions();
+  const governance = await productPublishGovernance();
+  return compileProductBackendConnectionPlan({
+    readiness,
+    contract,
+    adapter,
+    permissions,
+    governance,
+  });
+}
+
 async function guardedProductBackendWrite(kind, payload) {
   const readiness = await productBackendReadiness();
   const contract = compileProductBackendContract(readiness);
@@ -2684,6 +2700,11 @@ async function route(request, response) {
 
   if (url.pathname === "/api/knolet/product-backend/publish-governance" && request.method === "GET") {
     send(response, 200, await productPublishGovernance());
+    return;
+  }
+
+  if (url.pathname === "/api/knolet/product-backend/connection-plan" && request.method === "GET") {
+    send(response, 200, await productBackendConnectionPlan());
     return;
   }
 

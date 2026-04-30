@@ -14,6 +14,7 @@ const state = {
   lastProductBackendAdapter: null,
   lastProductPermissions: null,
   lastPublishGovernance: null,
+  lastProductBackendConnectionPlan: null,
   librarySourceBindings: {},
   selectedGraphNodeId: "",
   graphLayout: null,
@@ -172,6 +173,8 @@ const elements = {
   productPermissions: document.querySelector("#productPermissions"),
   refreshPublishGovernance: document.querySelector("#refreshPublishGovernance"),
   publishGovernance: document.querySelector("#publishGovernance"),
+  refreshProductBackendConnectionPlan: document.querySelector("#refreshProductBackendConnectionPlan"),
+  productBackendConnectionPlan: document.querySelector("#productBackendConnectionPlan"),
   refreshRuns: document.querySelector("#refreshRuns"),
   runForm: document.querySelector("#runForm"),
   runTitle: document.querySelector("#runTitle"),
@@ -2337,6 +2340,108 @@ function renderPublishGovernance(payload) {
   `;
 }
 
+function renderProductBackendConnectionPlan(payload) {
+  state.lastProductBackendConnectionPlan = payload;
+  const summary = payload.summary || {};
+  const statusState = summary.blockedStepCount ? "error" : summary.warningStepCount ? "warning" : "ok";
+  const cards = [
+    ["Status", summary.status || payload.status || "unknown"],
+    ["Ready", `${summary.readyStepCount || 0}/${summary.stepCount || 0}`],
+    ["Blocked", summary.blockedStepCount || 0],
+    ["Warnings", summary.warningStepCount || 0],
+    ["Next", summary.nextRecommendedStepKey || "unknown"],
+  ]
+    .map(
+      ([label, value]) => `
+        <article class="import-summary-card" data-state="${label === "Status" || label === "Blocked" ? statusState : "ok"}">
+          <span>${escapeHtml(label)}</span>
+          <strong>${escapeHtml(value)}</strong>
+        </article>
+      `,
+    )
+    .join("");
+  const steps = (payload.steps || [])
+    .map(
+      (item) => `
+        <li data-required="${item.state !== "ok" ? "true" : "false"}">
+          <strong>${escapeHtml(item.title)}</strong>
+          <span>${escapeHtml(item.state)} / ${escapeHtml(item.status || "")}</span>
+          <small>${escapeHtml(item.detail)}</small>
+          ${item.current ? `<code>${escapeHtml(item.current)}</code>` : ""}
+        </li>
+      `,
+    )
+    .join("");
+  const envVars = [
+    ...new Set((payload.steps || []).flatMap((item) => item.env || [])),
+  ]
+    .map(
+      (name) => `
+        <li data-required="false">
+          <strong>${escapeHtml(name)}</strong>
+          <span>product backend connection env</span>
+        </li>
+      `,
+    )
+    .join("");
+  const commands = (payload.steps || [])
+    .filter((item) => item.command)
+    .map(
+      (item) => `
+        <li data-required="${item.state !== "ok" ? "true" : "false"}">
+          <strong>${escapeHtml(item.title)}</strong>
+          <code>${escapeHtml(item.command)}</code>
+        </li>
+      `,
+    )
+    .join("");
+  const errors = payload.diagnosticsByLevel?.error || [];
+  const warnings = payload.diagnosticsByLevel?.warning || [];
+  const planJson = JSON.stringify(payload, null, 2);
+
+  elements.productBackendConnectionPlan.innerHTML = `
+    <div class="import-preview__summary">
+      <div>
+        <strong>Product backend connection plan: ${escapeHtml(summary.status || payload.status || "unknown")}</strong>
+        <p>실제 backend 연결 전에 auth, data API, storage, adapter, 권한, publish gate를 한 순서로 묶어 다음 작업을 정합니다.</p>
+      </div>
+      <span class="asset-pill" data-state="${statusState}">${summary.ready ? "ready" : "next step"}</span>
+    </div>
+    <div class="import-summary-grid graph-summary-grid">${cards}</div>
+    <div class="runtime-plan-section">
+      <h3>Connection steps</h3>
+      <ul class="next-step-list">${steps}</ul>
+    </div>
+    <div class="graph-layout">
+      <div>
+        <h3>Environment checklist</h3>
+        <ul class="next-step-list">${envVars}</ul>
+      </div>
+      <div>
+        <h3>Smoke commands</h3>
+        <ul class="next-step-list">${commands || `<li data-required="false"><strong>Smoke command 없음</strong><span>Data API URL이 준비되면 표시됩니다.</span></li>`}</ul>
+      </div>
+    </div>
+    <div class="runtime-plan-section">
+      <h3>Connection diagnostics</h3>
+      <div class="diagnostic-columns">
+        <div>
+          <h4>Error</h4>
+          <ul class="import-diagnostics">${diagnosticItems(errors)}</ul>
+        </div>
+        <div>
+          <h4>Warning</h4>
+          <ul class="import-diagnostics">${diagnosticItems(warnings)}</ul>
+        </div>
+      </div>
+    </div>
+    <details class="spec-preview">
+      <summary>Product backend connection plan JSON 전체 보기</summary>
+      <pre><code>${escapeHtml(planJson)}</code></pre>
+    </details>
+  `;
+}
+
 function selectGraphNode(nodeId) {
   const graph = state.lastGraphPreview?.graph || {};
   const node = (graph.nodes || []).find((item) => item.id === nodeId);
@@ -2788,6 +2893,14 @@ async function loadPublishGovernance() {
   );
 }
 
+async function loadProductBackendConnectionPlan() {
+  const payload = await request("/api/knolet/product-backend/connection-plan");
+  renderProductBackendConnectionPlan(payload);
+  logAction(
+    `Product backend connection plan 확인: ${payload.status || "unknown"}, next ${payload.summary?.nextRecommendedStepKey || "unknown"}.`,
+  );
+}
+
 async function saveGraphLayout() {
   const result = await request("/api/knolet/graph/layout", {
     method: "POST",
@@ -3221,6 +3334,9 @@ elements.refreshProductPermissions.addEventListener("click", () =>
 );
 elements.refreshPublishGovernance.addEventListener("click", () =>
   runAction(elements.refreshPublishGovernance, loadPublishGovernance),
+);
+elements.refreshProductBackendConnectionPlan.addEventListener("click", () =>
+  runAction(elements.refreshProductBackendConnectionPlan, loadProductBackendConnectionPlan),
 );
 elements.refreshRuns.addEventListener("click", () => runAction(elements.refreshRuns, loadRuns));
 elements.runForm.addEventListener("submit", createRun);

@@ -481,11 +481,25 @@ The publish governance layer creates a receipt preview that checks actor
 permission, publish target, artifact references, source-copy policy, and product
 backend readiness before any share/publish flow proceeds.
 
+Implemented in `0.5.6`:
+
+- `lib/knolet/product-backend-connection-plan.js`
+- `GET /api/knolet/product-backend/connection-plan`
+- Manager `Product Backend Connection Plan` panel
+- `test/knolet-product-backend-connection-plan.test.js`
+
+The connection plan combines readiness, endpoint contract, guarded adapter,
+team permission, and publish-governance outputs into an ordered sequence for
+real backend connection: product auth, product data API, server-backed storage,
+contract review, adapter dry-run, actor permission, publish receipt, write
+switch, and non-mutating smoke test.
+
 Next `0.5.x` work:
 
-No additional local-only `0.5.x` scaffold is recommended before connecting a
-real product-owned backend. The next meaningful step is to supply actual auth,
-data API, storage, and team permission infrastructure.
+No additional local-only `0.5.x` scaffold is recommended after the connection
+plan. The next meaningful step is to supply actual auth, data API, storage, and
+team permission infrastructure, then run the configured smoke test and guarded
+writes against that backend.
 
 ## Codex Implementation Prompt Shape
 
